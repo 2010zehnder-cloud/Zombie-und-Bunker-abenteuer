@@ -141,6 +141,21 @@ canvas{display:block;max-width:100%}
 .exp .opts2{display:flex;flex-wrap:wrap;gap:6px}
 .exp input{accent-color:var(--amber)}
 .endday{display:flex;justify-content:flex-end}
+.homepick{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
+.homepick:empty{display:none}
+.hp{text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:2px}
+.hp.on{border-color:var(--amber);background:#2b2715}
+.hp b{font-size:17px}
+.hp span{font-size:13px;color:var(--mute)}
+.upglist{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}
+.up{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px}
+.up .e{font-size:28px;text-align:center}
+.up b{display:block}
+.up span{font-size:13px;color:var(--mute);display:block}
+.pips{display:flex;gap:3px;margin:3px 0}
+.pips i{width:16px;height:6px;border-radius:2px;background:#3a4447}
+.pips i.f{background:var(--amber)}
+.up .btn{padding:8px 10px;font-size:14px;white-space:nowrap}
 .packbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
 .packgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
 .pk{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px}
@@ -190,6 +205,7 @@ canvas{display:block;max-width:100%}
         <span>Die Horde ist zwei Straßen entfernt. Schon im Haus kann einer auf dich warten. Danach: Bisse, Horden und ein Heilmittel.</span>
       </button>
     </div>
+    <div class="row"><button class="btn ghost" id="btn-upg" type="button">🔧 Bunker ausbauen · <span id="meta-scrap">0</span> ⚙️</button></div>
     <div class="opts">
       <label for="opt-viewer"><input type="checkbox" id="opt-viewer"> 🎥 Zuschauer-Modus: Antworten als A/B/C mit 20-Sekunden-Abstimmung für den Chat</label>
     </div>
@@ -200,7 +216,8 @@ canvas{display:block;max-width:100%}
   <!-- PACKEN (einfacher Modus) -->
   <section class="screen" id="scr-pack" hidden>
     <h2>Pack für den Bunker</h2>
-    <p class="lead">Die ganze Familie ist schon unten im Bunker. Du hast keinen Zeitdruck. Such dir aus, was mit runterkommt. Jedes Teil braucht 1 Platz.</p>
+    <div class="homepick" id="home-pick"></div>
+    <p class="lead" id="pack-lead">Die ganze Familie ist schon unten im Bunker. Du hast keinen Zeitdruck. Such dir aus, was mit runterkommt. Jedes Teil braucht 1 Platz.</p>
     <div class="packbar"><div><span class="timer" id="pack-left">12</span> <span class="small">Plätze frei</span></div><button class="btn ghost" type="button" id="btn-pack-rand">🎲 Zufällig packen</button></div>
     <div class="packgrid" id="pack-list"></div>
     <div class="row"><button class="btn" type="button" id="btn-pack-go">⬇ In den Bunker</button><button class="btn ghost" type="button" id="btn-pack-run">🏃 Lieber selbst durchs Haus rennen (Action)</button></div>
@@ -240,10 +257,20 @@ canvas{display:block;max-width:100%}
       <div class="col">
         <div class="panel"><h3>Bewohner &amp; Rationen</h3><div class="crew" id="crew"></div><div class="small">🥫 = heute Suppe, 💧 = heute Wasser. Wer lange nichts bekommt, wird schwach und stirbt.</div></div>
         <div class="panel exp" id="exp-box"></div>
+        <div class="panel" id="build-box"></div>
         <div class="panel"><h3>Vorräte</h3><div class="inv" id="inv"></div></div>
         <div class="endday"><button class="btn" id="btn-next" type="button">Tag beenden ➜</button></div>
       </div>
     </div>
+  </section>
+
+  <!-- AUSBAU (vor dem Spiel) -->
+  <section class="screen" id="scr-upg" hidden>
+    <h2>Bunker ausbauen</h2>
+    <p class="lead">Nach jeder Runde bekommst du ⚙️ Schrott: 2 pro überlebtem Tag, 15 für ein gutes Ende und alles, was im Lager übrig ist. Was du hier baust, bleibt für alle weiteren Runden. Im Spiel kannst du mit gefundenem Schrott zusätzlich weiterbauen.</p>
+    <div class="packbar"><div><span class="timer" id="upg-scrap">0</span> <span class="small">⚙️ Schrott gespart</span></div><button class="btn" id="btn-upg-back" type="button">Fertig</button></div>
+    <div class="stage"><canvas id="cv-upg" width="900" height="340"></canvas></div>
+    <div class="upglist" id="upg-list"></div>
   </section>
 
   <!-- ENDE -->
@@ -252,7 +279,7 @@ canvas{display:block;max-width:100%}
     <div class="endtitle"><div class="tag" id="end-tag">Ende</div><h2 id="end-title"></h2></div>
     <div class="paper" id="end-text"></div>
     <div class="stats" id="end-stats"></div>
-    <div class="row"><button class="btn" id="btn-again" type="button">Nochmal spielen</button><button class="btn ghost" id="btn-tomenu" type="button">Zum Menü</button></div>
+    <div class="row"><button class="btn" id="btn-again" type="button">Nochmal spielen</button><button class="btn ghost" id="btn-end-upg" type="button">🔧 Bunker ausbauen</button><button class="btn ghost" id="btn-tomenu" type="button">Zum Menü</button></div>
   </section>
 </div>
 
@@ -286,9 +313,27 @@ updSoundBtn();
 const ITEMS={
   suppe:{e:'🥫',n:'Dosensuppe'}, wasser:{e:'💧',n:'Wasser'}, medi:{e:'💊',n:'Medizin'}, werkzeug:{e:'🧰',n:'Werkzeug'},
   radio:{e:'📻',n:'Radio'}, maske:{e:'😷',n:'Gasmaske'}, axt:{e:'🪓',n:'Axt'}, armbrust:{e:'🏹',n:'Armbrust'},
-  lampe:{e:'🔦',n:'Taschenlampe'}, karte:{e:'🗺️',n:'Stadtkarte'}, karten:{e:'🃏',n:'Spielkarten'}, spray:{e:'🧴',n:'Insektenspray'}, buch:{e:'📖',n:'Survival-Buch'}
+  lampe:{e:'🔦',n:'Taschenlampe'}, karte:{e:'🗺️',n:'Stadtkarte'}, karten:{e:'🃏',n:'Spielkarten'}, spray:{e:'🧴',n:'Insektenspray'}, buch:{e:'📖',n:'Survival-Buch'}, schrott:{e:'⚙️',n:'Schrott'}
 };
 const SPAWN={suppe:6,wasser:6,medi:1,werkzeug:1,radio:1,maske:1,axt:1,armbrust:1,lampe:1,karte:1,karten:1,spray:1,buch:1};
+/* Ausbau */
+const UPG={
+  tank:{e:'🛢️',n:'Wassertank',d:'Sammelt Kondenswasser: +1 💧 alle {5|4|3} Tage'},
+  pilz:{e:'🍄',n:'Pilzzucht',d:'Wächst im Dunkeln: +1 🥫 alle {5|4|3} Tage'},
+  betten:{e:'🛏️',n:'Betten & Teppich',d:'Stimmung sinkt nur alle {3|4|5} Tage statt alle 2'},
+  tuer:{e:'🚪',n:'Panzertür & Barrikaden',d:'Weniger Verletzungen bei Kämpfen (−{12|24|36} %), zählt für die Festung'},
+  filter:{e:'💨',n:'Luftfilter',d:'Krankheiten werden seltener schlimmer (−{8|16|24} %)'},
+  lazarett:{e:'🩺',n:'Krankenecke',d:'Kranke und Verletzte heilen öfter (+{10|20|30} %)'},
+  antenne:{e:'📡',n:'Funkantenne',d:'Radio-Kontakt auch ohne 📻, Suche klappt öfter (+{15|30|45} %)'},
+  lager:{e:'🗄️',n:'Vorratsraum',d:'Beim Packen +{2|4|6} Plätze',meta:1}
+};
+const UPG_META=[15,30,50],UPG_RUN=[3,5,8];
+let META=store.get('b45-meta',{scrap:20,lv:{}});if(!META.lv)META.lv={};
+const saveMeta=()=>store.set('b45-meta',META);
+const lvl=k=>G&&G.up?(G.up[k]||0):(META.lv[k]||0);
+const upDesc=(k,l)=>UPG[k].d.replace(/\{([^}]*)\}/g,(_,a)=>a.split('|')[Math.max(0,Math.min(2,l-1))]);
+const risk=b=>chance(Math.max(.05,b-lvl('tuer')*.12));
+let HOME='bunker';
 const GEAR=['maske','axt','armbrust','lampe','karte'];
 const FAMILY=[
   {id:'jens',name:'Jens',role:'Papa',shirt:'#3d6fa8',skin:'#e7b98f',hair:'#5a3a22',beard:1,desc:'Stark, aber langsam beim Denken. Der Fels der Familie.'},
@@ -457,31 +502,38 @@ const ENDINGS={
   heli:{e:'🚁',t:'Der letzte Hubschrauber'}, heilmittel:{e:'🧪',t:'Das Heilmittel'}, festung:{e:'🏰',t:'Die Festung'},
   verwandelt:{e:'🧟',t:'Einer von ihnen'}, licht:{e:'🌅',t:'Zurück ans Licht'}, allein:{e:'🧍',t:'Der letzte Mensch'}
 };
-function renderEndList(){const seen=store.get('b45-ends',{});const keys=Object.keys(ENDINGS);
+function renderEndList(){$('#meta-scrap').textContent=META.scrap;const seen=store.get('b45-ends',{});const keys=Object.keys(ENDINGS);
   $('#end-count').textContent=`(${keys.filter(k=>seen[k]).length}/${keys.length})`;
   $('#end-list').innerHTML=keys.map(k=>seen[k]?`<div class="endchip"><span class="e">${ENDINGS[k].e}</span>${ENDINGS[k].t}</div>`:`<div class="endchip lock"><span class="e">🔒</span>???</div>`).join('')}
 let OPT={viewer:store.get('b45-viewer',false)};
 $('#opt-viewer').checked=OPT.viewer;$('#opt-viewer').onchange=e=>{OPT.viewer=e.target.checked;store.set('b45-viewer',OPT.viewer)};
 document.querySelectorAll('.scen').forEach(b=>{b.onmouseenter=()=>TITLE.scen=b.dataset.scen;b.onfocus=()=>TITLE.scen=b.dataset.scen;b.onclick=()=>{ac();sfx.click();startPack(b.dataset.scen)}});
 $('#btn-menu').onclick=()=>toMenu();
-function toMenu(){stopRun();cancelAnimationFrame(BUNK.raf);cancelAnimationFrame(ENDV.raf);renderEndList();show('scr-menu');cancelAnimationFrame(TITLE.raf);drawTitle()}
+function toMenu(){stopRun();cancelAnimationFrame(UPV.raf);cancelAnimationFrame(BUNK.raf);cancelAnimationFrame(ENDV.raf);renderEndList();show('scr-menu');cancelAnimationFrame(TITLE.raf);drawTitle()}
 
 /* ================= Packen (einfach) ================= */
-const PACKMAX=12;
+const packMax=()=>12+(META.lv.lager||0)*2+(SCEN==='zombie'&&HOME==='wohnung'?6:0);
 const PACKINFO={suppe:'Essen für 1 Person, 1 Tag',wasser:'Trinken für 1 Person, 1 Tag',medi:'Heilt Krankheit und Wunden',werkzeug:'Repariert Rohre, Strom, Luke',radio:'Vielleicht hört euch jemand',maske:'Schutz vor Strahlung und Gift',axt:'Waffe und Werkzeug',armbrust:'Leise Fernwaffe',lampe:'Licht und Signale',karte:'Findet Orte draußen',karten:'Gegen Langeweile',spray:'Gegen Krabbeltiere',buch:'Tipps fürs Überleben'};
 let PACK={};
 function packUsed(){return Object.values(PACK).reduce((a,b)=>a+b,0)}
-function startPack(scen){SCEN=scen;cancelAnimationFrame(TITLE.raf);PACK={suppe:3,wasser:3};show('scr-pack');renderPack()}
-function renderPack(){const left=PACKMAX-packUsed();$('#pack-left').textContent=left;
-  $('#pack-list').innerHTML=Object.keys(ITEMS).map(k=>{const n=PACK[k]||0,max=SPAWN[k];
+function startPack(scen){SCEN=scen;HOME='bunker';cancelAnimationFrame(TITLE.raf);PACK={suppe:3,wasser:3};show('scr-pack');renderPack()}
+function renderPack(){
+  while(packUsed()>packMax()){const k=Object.keys(PACK).reverse().find(k=>PACK[k]>0);PACK[k]--}
+  const left=packMax()-packUsed();$('#pack-left').textContent=left;
+  const hp=$('#home-pick');
+  if(SCEN==='zombie'){hp.innerHTML=`<button type="button" class="hp ${HOME==='bunker'?'on':''}" data-home="bunker"><b>🕳️ Ab in den Bunker</b><span>Sicher unter der Erde. Weniger Vorräte, weniger Kämpfe.</span></button><button type="button" class="hp ${HOME==='wohnung'?'on':''}" data-home="wohnung"><b>🏢 In der Wohnung bleiben</b><span>+6 Plätze und die volle Küche (+3 🥫 +3 💧 +2 ⚙️). Aber Zombies greifen viel öfter an!</span></button>`;
+    hp.querySelectorAll('[data-home]').forEach(b=>b.onclick=()=>{HOME=b.dataset.home;sfx.click();renderPack()})}else hp.innerHTML='';
+  $('#pack-lead').textContent=HOME==='wohnung'?'Ihr verrammelt die Wohnung im 3. Stock. Such dir aus, was ihr aus Keller und Nachbarwohnungen holt. Jedes Teil braucht 1 Platz.':'Die ganze Familie ist schon unten im Bunker. Du hast keinen Zeitdruck. Such dir aus, was mit runterkommt. Jedes Teil braucht 1 Platz.';
+  $('#btn-pack-run').hidden=HOME==='wohnung';
+  $('#pack-list').innerHTML=Object.keys(ITEMS).filter(k=>SPAWN[k]).map(k=>{const n=PACK[k]||0,max=SPAWN[k];
     return `<div class="pk ${n?'on':''}"><div class="e">${ITEMS[k].e}</div><div><b>${ITEMS[k].n}</b><span>${PACKINFO[k]}</span></div><div class="ctl">${max>1?`<button type="button" data-m="${k}" aria-label="${ITEMS[k].n} weniger" ${n?'':'disabled'}>−</button><output>${n}</output><button type="button" data-p="${k}" aria-label="${ITEMS[k].n} mehr" ${n<max&&left>0?'':'disabled'}>+</button>`:`<button type="button" data-t="${k}" aria-label="${ITEMS[k].n} ein- oder auspacken" ${n||left>0?'':'disabled'}>${n?'✓':'+'}</button>`}</div></div>`}).join('');
   document.querySelectorAll('#pack-list [data-p]').forEach(b=>b.onclick=()=>{PACK[b.dataset.p]=(PACK[b.dataset.p]||0)+1;sfx.pick();renderPack()});
   document.querySelectorAll('#pack-list [data-m]').forEach(b=>b.onclick=()=>{PACK[b.dataset.m]--;sfx.click();renderPack()});
   document.querySelectorAll('#pack-list [data-t]').forEach(b=>b.onclick=()=>{const k=b.dataset.t;PACK[k]=PACK[k]?0:1;sfx.pick();renderPack()})}
-$('#btn-pack-rand').onclick=()=>{PACK={suppe:R(2,5),wasser:R(2,5)};const others=shuffle(Object.keys(ITEMS).filter(k=>SPAWN[k]===1));while(packUsed()<PACKMAX&&others.length)PACK[others.pop()]=1;sfx.good();renderPack()};
+$('#btn-pack-rand').onclick=()=>{PACK={suppe:R(2,5),wasser:R(2,5)};const others=shuffle(Object.keys(ITEMS).filter(k=>SPAWN[k]===1));while(packUsed()<packMax()&&others.length)PACK[others.pop()]=1;sfx.good();renderPack()};
 $('#btn-pack-run').onclick=()=>{sfx.click();startPick(SCEN)};
 $('#btn-pack-go').onclick=()=>{ac();sfx.drop();G=null;const stash={};Object.entries(PACK).forEach(([k,n])=>{if(n)stash[k]=n});
-  startBunker({scen:SCEN,runner:FAMILY[0],saved:FAMILY.slice(1),stash},[])};
+  startBunker({scen:SCEN,runner:FAMILY[0],saved:FAMILY.slice(1),stash,home:SCEN==='zombie'?HOME:'bunker'},[])};
 
 /* ================= Läufer wählen ================= */
 let SCEN='atom';
@@ -607,9 +659,10 @@ function mkPerson(f){return {...f,seed:Math.random()*6,alive:true,away:0,gear:[]
 function startBunker(run,lost){
   const inv={};Object.keys(ITEMS).forEach(k=>inv[k]=run.stash[k]||0);
   const people=[mkPerson(run.runner),...run.saved.map(mkPerson)];
-  G={scen:run.scen,day:1,people,inv,flags:{fort:0},used:{},queue:[],log:[],ev:null,res:null,ration:{},dead:[],lostAtStart:lost.map(f=>f.name),stats:{exps:0,events:0}};
+  G={scen:run.scen,home:run.home||'bunker',up:{...META.lv},day:1,people,inv,flags:{fort:0},used:{},queue:[],log:[],ev:null,res:null,ration:{},dead:[],lostAtStart:lost.map(f=>f.name),stats:{exps:0,events:0}};
   const inside=people.map(p=>p.name).join(', ');
-  G.log.push(`Tag 1. Wir sind drin: ${inside}.`);
+  if(G.home==='wohnung'){add('suppe',3);add('wasser',3);add('schrott',2)}
+  G.log.push(G.home==='wohnung'?`Tag 1. Tür zu, Schrank davor. In der Wohnung: ${inside}.`:`Tag 1. Wir sind drin: ${inside}.`);
   if(lost.length)G.log.push(`${lost.filter(f=>!f.cat).map(f=>f.name).join(' und ')||''}${lost.some(f=>f.cat)?(lost.filter(f=>!f.cat).length?' und Kater Moritz':'Kater Moritz'):''} ${lost.length>1?'haben':'hat'} es nicht in den Bunker geschafft. Niemand sagt ein Wort.`);
   const food=inv.suppe,water=inv.wasser;G.log.push(`Vorräte: ${food} Dosen Suppe und ${water} Flaschen Wasser.${food+water<5?' Das wird verdammt knapp.':''}`);
   setEvent(EV.start);show('scr-bunker');renderBunker();cancelAnimationFrame(BUNK.raf);BUNK.raf=requestAnimationFrame(bunkerLoop);
@@ -634,7 +687,7 @@ const nm=p=>p?p.name:'jemand';
 /* ---------- Ereignisse ---------- */
 const EV={};const POOL=[];
 function ev(id,o){o.id=id;EV[id]=o;if(!o.chain)POOL.push(o)}
-ev('start',{chain:1,art:'🔦',title:'Der erste Morgen',text:()=>G.scen==='atom'?'Staub rieselt von der Decke. Das Radio schweigt, draußen ist es unheimlich still. Ab jetzt zählt jede Dose.':'Die ganze Nacht hat es an der Luke gekratzt. Jetzt ist es ruhig. Zu ruhig. Ab jetzt zählt jede Dose.',
+ev('start',{chain:1,art:'🔦',title:'Der erste Morgen',text:()=>G.home==='wohnung'?'Die Fenster sind mit Brettern vernagelt, der Kühlschrank steht vor der Tür. Im Treppenhaus schlurft es. Hier oben gibt es mehr Vorräte, aber die Toten wissen, dass ihr da seid.':G.scen==='atom'?'Staub rieselt von der Decke. Das Radio schweigt, draußen ist es unheimlich still. Ab jetzt zählt jede Dose.':'Die ganze Nacht hat es an der Luke gekratzt. Jetzt ist es ruhig. Zu ruhig. Ab jetzt zählt jede Dose.',
   choices:[{l:'Vorräte zählen und einen Plan machen',fn:()=>'Ihr schreibt alles auf. Regel Nummer eins: Nicht jeder bekommt jeden Tag zu essen. Wasser ist wichtiger als Suppe.'},
     {l:'Erst mal alle in den Arm nehmen',fn:()=>{mood(+1);return 'Ein langer, stiller Moment. Ihr lebt. Das ist heute genug.'}}]});
 
@@ -644,11 +697,11 @@ ev('fremder',{scen:'both',once:1,min:3,art:'🚪',title:'Es klopft',text:()=>'Dr
     {l:'Mit der Armbrust im Anschlag öffnen',need:'armbrust',fn:()=>{if(chance(.6)){joinPerson(EXTRA.petrova);add('suppe',2);return 'Nur Frau Petrova von nebenan. Sie hebt die Hände, dann lacht sie erleichtert. Sie zieht ein und bringt zwei Dosen Suppe mit.'}return 'Hinter der Frau stehen zwei Männer mit Brecheisen. Als sie die Armbrust sehen, rennen alle drei davon.'}},
     {l:'Nicht reagieren',fn:()=>{mood(-1);return 'Ihr haltet den Atem an. Irgendwann verstummt das Klopfen. Niemand spricht darüber.'}}]});
 ev('rohr',{scen:'both',once:1,min:2,art:'🚿',title:'Rohrbruch',text:()=>'Ein Zischen, dann spritzt Wasser aus der Wand. Das alte Rohr hinter dem Regal ist geplatzt.',
-  choices:[{l:'Mit dem Werkzeug flicken',need:'werkzeug',fn:()=>{add('wasser',2);sfx.good();return 'Mit Hanf und Rohrzange ist das Leck dicht. Vorher habt ihr noch 2 Flaschen Wasser aufgefangen!'}},
+  choices:[{l:'Mit dem Werkzeug flicken',need:'werkzeug',fn:()=>{add('wasser',2);add('schrott');sfx.good();return 'Mit Hanf und Rohrzange ist das Leck dicht. Vorher habt ihr noch 2 Flaschen Wasser aufgefangen! Das alte Rohrstück gibt +1 ⚙️.'}},
     {l:'Mit Lappen stopfen',fn:()=>{take('wasser',1);if(chance(.4)){const p=hurtRandom('sick');return `Es tropft die ganze Nacht. Eine Wasserflasche ist umgekippt und alles ist klamm. ${nm(p)} fängt an zu husten.`}return 'Es tropft die ganze Nacht. Eine Flasche Wasser kippt um und ist verloren.'}}]});
 ev('krabbler',{scen:'both',once:1,min:4,art:'🪳',title:()=>G.scen==='atom'?'Mutierte Kakerlaken':'Ratten im Lüftungsschacht',text:()=>G.scen==='atom'?'Aus dem Lüftungsschacht kriechen Kakerlaken. Daumengroß. Sie interessieren sich sehr für eure Suppe.':'Aus dem Lüftungsschacht quieken Ratten. Viele Ratten. Sie haben eure Suppenregale entdeckt.',
   choices:[{l:'Insektenspray versprühen',use:'spray',fn:()=>{sfx.good();return 'Pschhh! Eine stinkende Wolke und die Plage ist weg. Das Spray ist leer, aber die Suppe ist gerettet.'}},
-    {l:'Mit der Axt draufhauen',need:'axt',fn:()=>{if(chance(.4)){const p=hurtRandom();return `Ihr gewinnt die Schlacht. ${nm(p)} hat sich dabei aber übel in die Hand gehauen.`}return 'Nach einer wilden Stunde ist der Spuk vorbei. Leo nennt es „die Schlacht am Regal“.'}},
+    {l:'Mit der Axt draufhauen',need:'axt',fn:()=>{if(risk(.4)){const p=hurtRandom();return `Ihr gewinnt die Schlacht. ${nm(p)} hat sich dabei aber übel in die Hand gehauen.`}return 'Nach einer wilden Stunde ist der Spuk vorbei. Leo nennt es „die Schlacht am Regal“.'}},
     {l:'Ignorieren',fn:()=>{take('suppe',2);sfx.bad();return 'Am Morgen sind zwei Dosen angenagt und ausgelaufen.'}}]});
 ev('langeweile',{scen:'both',min:3,art:'😩',title:'Lagerkoller',cond:()=>insideH().length>1,text:()=>`Tag ${G.day} unter der Erde. ${nm(rp())} starrt seit Stunden auf dieselbe Betonwand. Die Stimmung ist im Keller. Wortwörtlich.`,
   choices:[{l:'Spielkarten-Abend',need:'karten',fn:()=>{mood(+3);return 'Mau-Mau, bis die Taschenlampe flackert. Es wird geschummelt, gelacht und gestritten. Herrlich.'}},
@@ -658,9 +711,9 @@ ev('fieber',{scen:'both',min:4,art:'🤒',title:'Fieber',cond:()=>insideH().some
   choices:[{l:'Medizin geben',use:'medi',fn:()=>{G.ctx.sick=0;return `${nm(G.ctx)} schluckt die Tabletten. Am nächsten Morgen ist das Fieber gesunken.`}},
     {l:'Extra-Suppe und Ruhe',cond:()=>has('suppe'),fn:()=>{take('suppe');if(chance(.6))return `Heiße Suppe wirkt Wunder. ${nm(G.ctx)} schwitzt es aus.`;G.ctx.sick=1;return `Die Suppe hilft kaum. ${nm(G.ctx)} ist krank.`}},
     {l:'Abwarten',fn:()=>{G.ctx.sick=1;return `${nm(G.ctx)} ist jetzt krank. Hoffentlich wird es nicht schlimmer.`}}]});
-ev('radio',{scen:'both',min:3,art:'📻',title:'Rauschen im Radio',cond:()=>has('radio')&&!G.flags.radioDone,text:()=>'Das Radio knistert. Zwischen dem Rauschen meint ihr, Stimmen zu hören.',
+ev('radio',{scen:'both',min:3,art:'📻',title:'Rauschen im Radio',cond:()=>(has('radio')||lvl('antenne'))&&!G.flags.radioDone,text:()=>'Das Radio knistert. Zwischen dem Rauschen meint ihr, Stimmen zu hören.',
   choices:[{l:'Alle Frequenzen absuchen',fn:()=>{G.flags.radioTries=(G.flags.radioTries||0)+1;
-      if(chance(.45+G.flags.radioTries*.15)){G.flags.radioDone=1;
+      if(chance(.45+G.flags.radioTries*.15+lvl('antenne')*.15)){G.flags.radioDone=1;
         if(G.scen==='atom'){queue('konvoi_funk',R(1,3));return 'Da! Eine Durchsage, abgehackt: „…Katastrophenschutz… Überlebende… melden…“. Ihr schreibt die Frequenz an die Wand.'}
         if(!G.flags.heliTried){queue(chance(.5)?'heli_funk':'forscher_funk',R(1,2))}else queue('forscher_funk',R(1,2));
         return 'Eine Stimme! „…Hört uns jemand? Wir melden uns wieder…“ Ihr lasst das Radio auf dieser Frequenz.'}
@@ -713,7 +766,7 @@ ev('tunnel_besuch',{chain:1,art:'🚇',title:'Die Leute aus der U-Bahn',text:()=
     {l:'Danke, wir bleiben',fn:()=>{add('wasser',2);return 'Er nickt und lässt euch 2 Flaschen Wasser da. „Das Angebot steht.“'}}]});
 ev('pluenderer',{scen:'atom',once:1,min:5,art:'💀',title:'Plünderer',text:()=>'Eine Bande in Lederjacken mit Wolfsfellen steht an der Luke. „Essen raus, oder wir räuchern euch aus!“',
   choices:[{l:'2 Suppe abgeben',cond:()=>G.inv.suppe>=2,fn:()=>{take('suppe',2);G.flags.wolf=1;queue('pluenderer2',R(3,5));return 'Der Anführer nimmt die Dosen und nickt anerkennend. „Ihr seid in Ordnung.“'}},
-    {l:'Mit der Armbrust drohen',need:'armbrust',fn:()=>{if(chance(.4)){const p=hurtRandom();return `Ein Pfeil, ein Schrei, dann rennen sie. ${nm(p)} wurde von einem Stein getroffen.`}return 'Ein Warnschuss genügt. Sie ziehen fluchend ab.'}},
+    {l:'Mit der Armbrust drohen',need:'armbrust',fn:()=>{if(risk(.4)){const p=hurtRandom();return `Ein Pfeil, ein Schrei, dann rennen sie. ${nm(p)} wurde von einem Stein getroffen.`}return 'Ein Warnschuss genügt. Sie ziehen fluchend ab.'}},
     {l:'Mit der Axt verteidigen',need:'axt',fn:()=>{const p=hurtRandom();if(chance(.3)){kill(p,'starb bei der Verteidigung');sfx.bad();return `Ein brutaler Kampf an der Luke. Sie fliehen, aber ${nm(p)} überlebt es nicht.`}return `Ihr schlagt sie zurück. ${nm(p)} ist verletzt.`}},
     {l:'Verweigern',fn:()=>{const s=stealRandom(3);sfx.bad();return `Sie brechen die Luke auf und nehmen ${s} mit.`}}]});
 ev('pluenderer2',{chain:1,art:'🐺',title:'Die Wölfe kommen zurück',text:()=>'Die Bande ist zurück, diesmal mit Geschenken: Wasser! „Wir sind die Asche-Wölfe. Wir könnten Leute wie euch gebrauchen.“',
@@ -731,7 +784,7 @@ ev('hund2',{scen:'atom',once:1,min:6,art:'🐕',title:'Der Hund mit zwei Köpfen
 /* --- Zombie --- */
 ev('kratzen',{scen:'zombie',min:2,art:'🧟',title:'Kratzen an der Luke',text:()=>'Krrrratz. Krrrratz. Etwas Totes kratzt an der Luke. Und es wird mehr.',
   choices:[{l:'Mit der Armbrust durch den Spalt schießen',need:'armbrust',fn:()=>'Ein dumpfes Geräusch, dann Stille. Gute Arbeit.'},
-    {l:'Mit der Axt erledigen',need:'axt',fn:()=>{if(chance(.3)){const p=hurtRandom();return `Erledigt. Aber ${nm(p)} wurde gekratzt. Hoffentlich nur ein Kratzer…`}return 'Ein Schlag durch den Spalt. Problem gelöst.'}},
+    {l:'Mit der Axt erledigen',need:'axt',fn:()=>{if(risk(.3)){const p=hurtRandom();return `Erledigt. Aber ${nm(p)} wurde gekratzt. Hoffentlich nur ein Kratzer…`}return 'Ein Schlag durch den Spalt. Problem gelöst.'}},
     {l:'Verstärken mit Werkzeug',need:'werkzeug',fn:()=>{G.flags.fort++;return 'Zwei Stahlstreben mehr. Die Luke hält jetzt einiges aus.'}},
     {l:'Leise sein und warten',fn:()=>{mood(-2);return 'Die ganze Nacht Kratzen. Niemand schläft.'}}]});
 ev('gebissen',{scen:'zombie',once:1,min:4,art:'🩸',title:'Eine Fremde',text:()=>'Eine junge Frau hämmert an die Luke. „Bitte! Ich heiße Tina! Die sind direkt hinter mir!“ Ihr Arm blutet.',
@@ -766,8 +819,35 @@ ev('festung',{scen:'zombie',once:1,min:10,art:'🏗️',title:'Baupläne',cond:(
   choices:[{l:'Los geht’s (kostet 1 Wasser)',cond:()=>has('wasser'),fn:()=>{take('wasser');G.flags.fort+=2;mood(+1);return 'Drei Tage Schufterei, aber der Eingang ist jetzt ein Panzer. Zombies? Sollen sie kommen.'}},
     {l:'Zu riskant',fn:()=>'Vielleicht später.'}]});
 ev('zhund',{scen:'zombie',once:1,min:5,art:'🐺',title:'Zombie-Hund',text:()=>'Ein Hund schnüffelt an der Lüftung. Halb verwest. Er hat euch gerochen.',
-  choices:[{l:'Armbrust',need:'armbrust',fn:()=>'Ein sauberer Schuss.'},{l:'Axt',need:'axt',fn:()=>{const p=chance(.5)?hurtRandom():null;return p?`${p.name} wird gebissen… am Ärmel. Nur ein Riss im Stoff. Glück gehabt. Aber die Hand ist verletzt.`:'Ein Hieb. Erledigt.'}},
+  choices:[{l:'Armbrust',need:'armbrust',fn:()=>'Ein sauberer Schuss.'},{l:'Axt',need:'axt',fn:()=>{const p=risk(.5)?hurtRandom():null;return p?`${p.name} wird gebissen… am Ärmel. Nur ein Riss im Stoff. Glück gehabt. Aber die Hand ist verletzt.`:'Ein Hieb. Erledigt.'}},
     {l:'Lüftung zuhalten',fn:()=>{const p=hurtRandom('sick');return `Stunden ohne Frischluft. ${nm(p)} wird schwindelig und krank.`}}]});
+
+/* --- Wohnung: Angriffe --- */
+const ATTACKS=[];
+function atk(id,o){o.chain=1;ev(id,o);ATTACKS.push(o)}
+function biteMaybe(p,c){if(p&&chance(c)){p.bitten=true;queue('biss',1);return ` ${p.name} hat eine Bisswunde am Arm!`}return ''}
+atk('a_tuer',{art:'🚪',title:'Sie sind an der Tür!',text:()=>'Fäuste hämmern gegen die Wohnungstür. Das Holz knackt. Mindestens drei Zombies drücken von außen.',
+  choices:[{l:'Mit der Armbrust durch den Spion',need:'armbrust',fn:()=>{if(risk(.15)){const p=hurtRandom();return `Zwei erledigt, dann bricht die Tür kurz auf. ${nm(p)} wird verletzt, bevor ihr sie wieder zudrückt.`}add('schrott');return 'Drei Schüsse, drei Treffer. Danach schraubt ihr die Scharniere vom Kellerabteil ab: +1 ⚙️.'}},
+    {l:'Tür auf und mit der Axt rein',need:'axt',fn:()=>{if(risk(.35)){const p=hurtRandom();return `Ein wilder Kampf im Flur. Ihr gewinnt, aber ${nm(p)} ist verletzt.${biteMaybe(p,.15)}`}return 'Drei Hiebe. Stille im Treppenhaus. Ihr zittert, aber alle sind heil.'}},
+    {l:'Mit Werkzeug verbarrikadieren',need:'werkzeug',fn:()=>{G.flags.fort++;return 'Bretter, Schrauben, das Bücherregal. Die Tür hält, und sie wird ab jetzt noch besser halten.'}},
+    {l:'Gegen die Tür stemmen',fn:()=>{if(risk(.6)){const p=hurtRandom();return `Die Tür gibt nach! Eine Hand greift durch den Spalt. ${nm(p)} wird verletzt.${biteMaybe(p,.2)}`}return 'Alle drücken mit. Irgendwann ziehen sie ab.'}}]});
+atk('a_fenster',{art:'🪟',title:'Über den Balkon',text:()=>'Glas klirrt. Ein Zombie ist über den Balkon geklettert und zwängt sich zwischen den Brettern durch ins Wohnzimmer!',
+  choices:[{l:'Armbrust',need:'armbrust',fn:()=>'Ein Schuss, er kippt rückwärts vom Balkon. Ihr nagelt neue Bretter an.'},
+    {l:'Axt',need:'axt',fn:()=>{if(risk(.3)){const p=hurtRandom();return `Erledigt, aber ${nm(p)} hat sich an den Scherben übel geschnitten.`}return 'Ein sauberer Hieb. Ihr werft ihn vom Balkon.'}},
+    {l:'Mit der Bratpfanne!',fn:()=>{if(risk(.5)){const p=hurtRandom();return `BONG! Er fällt, aber ${nm(p)} wurde vorher erwischt.${biteMaybe(p,.15)}`}mood(+1);return 'BONG! Volltreffer. Leo nennt die Pfanne ab jetzt „Excalibur“.'}},
+    {l:'Ins Bad flüchten',fn:()=>{const s=stealRandom(2);mood(-1);return `Ihr sperrt euch ein, bis er weiterzieht. Im Wohnzimmer ist dabei einiges zu Bruch gegangen: ${s}.`}}]});
+atk('a_nachbar',{art:'🏚️',title:'Die Wohnung gegenüber',text:()=>'Die Tür von Familie Kowalski steht offen. Drinnen ist es still. Zu still? Dort gibt es bestimmt noch Vorräte.',
+  choices:[{l:'Mit Waffe rübergehen',cond:()=>has('axt')||has('armbrust'),fn:()=>{const n=R(2,3);const got=[];for(let i=0;i<n;i++){const k=pick(['suppe','suppe','wasser','wasser','medi','schrott']);add(k);got.push(ITEMS[k].e)}if(risk(.25)){const p=hurtRandom();return `Herr Kowalski war noch zu Hause. Als einer von ihnen. ${nm(p)} wird verletzt, aber ihr bringt ${got.join(' ')} mit.`}return `Leer. Ihr bringt ${got.join(' ')} mit.`}},
+    {l:'Ohne Waffe schnell rein',fn:()=>{const k=pick(['suppe','wasser','schrott']);add(k);if(risk(.55)){const p=hurtRandom();return `Etwas packt euch im dunklen Flur! ${nm(p)} wird verletzt.${biteMaybe(p,.2)} Immerhin: ${ITEMS[k].e}.`}return `Glück gehabt. Ihr schnappt euch ${ITEMS[k].e} und rennt zurück.`}},
+    {l:'Tür zu, bloß nicht',fn:()=>'Ihr bleibt drinnen. Kowalskis Tür knarrt die ganze Nacht.'}]});
+atk('a_treppe',{art:'🧟',title:'Horde im Treppenhaus',min:5,text:()=>'Das ganze Haus bebt. Eine Horde schiebt sich die Treppe hoch. Stockwerk für Stockwerk.',
+  choices:[{l:'Treppe mit Werkzeug sperren',need:'werkzeug',fn:()=>{G.flags.fort++;return 'Ihr schraubt die Brandschutztür im 2. Stock zu. Die Horde staut sich unten.'}},
+    {l:'Oben an der Treppe kämpfen',need:'axt',fn:()=>{const p=hurtRandom();if(risk(.25)){kill(p,'fiel im Treppenhaus');sfx.bad();return `Ihr haltet die Treppe. Aber ${nm(p)} kommt nicht zurück.`}add('schrott',2);return `Stundenlanger Kampf. ${nm(p)} ist verletzt, aber ihr habt gewonnen. In den Trümmern: +2 ⚙️.`}},
+    {l:'Licht aus, ganz still sein',fn:()=>{if(risk(.5)){const a=shuffle(insideH().slice()).slice(0,2);a.forEach(p=>p.hurt=Math.max(1,p.hurt));return `Sie finden die Tür trotzdem. ${a.map(p=>p.name).join(' und ')} werden beim Zurückdrängen verletzt.`}return 'Die Horde schlurft am 3. Stock vorbei. Ihr atmet erst nach einer Stunde wieder.'}}]});
+atk('a_decke',{art:'🔨',title:'Von oben',text:()=>'Frau Huber aus dem 4. Stock ist eine von ihnen. Sie trampelt über die Decke, und jetzt bröckelt der Putz.',
+  choices:[{l:'Durch das Loch mit der Armbrust',need:'armbrust',fn:()=>'Ein Schuss nach oben. Dann Stille. Ihr spachtelt das Loch zu.'},
+    {l:'Decke mit Werkzeug abstützen',need:'werkzeug',fn:()=>{add('schrott');return 'Balken aus dem Keller, gut verschraubt. Und ein paar Teile bleiben übrig: +1 ⚙️.'}},
+    {l:'Ins Kinderzimmer umziehen',fn:()=>{mood(-1);return 'Alle schlafen eng zusammen. Das Trampeln hört nicht auf.'}}]});
 
 const FLAVOR=['{p} zählt die Dosen zum dritten Mal.','{p} kritzelt Strichmännchen an die Wand.','Draußen heult der Wind über die Luke.','{p} schwört, oben Schritte gehört zu haben.','Die Glühbirne summt. Sonst nichts.','{p} hat vergessen, welcher Wochentag ist.','{p} erzählt von früher. Von Pizza.','Es riecht nach Beton und Angst.','{p} macht Liegestütze, bis die Arme zittern.','Irgendwo tropft es.'];
 
@@ -778,6 +858,7 @@ function choose(i){const e=G.ev,ch=e.choices[i];if(canUse(ch))return;sfx.click()
 function pickEvent(){
   const due=G.queue.filter(q=>q.day<=G.day).sort((a,b)=>a.day-b.day);
   for(const q of due){G.queue.splice(G.queue.indexOf(q),1);const e=EV[q.id];if(!e.cond||e.cond())return e}
+  if(G.home==='wohnung'&&G.day>=2&&insideH().length&&chance(.55)){const a=ATTACKS.filter(e=>G.day>=(e.min||0)&&e.id!==G.last);if(a.length)return pick(a)}
   if(!insideH().length||!chance(.78))return null;
   const pool=POOL.filter(e=>e.id!=='start'&&(e.scen==='both'||e.scen===G.scen)&&(!e.once||!G.used[e.id])&&G.day>=(e.min||0)&&(!e.cond||e.cond())&&G.last!==e.id);
   if(!pool.length)return null;const e=pick(pool);return e}
@@ -793,18 +874,21 @@ function endDay(){
   inside().forEach(p=>{if(p.cat||p.dog)return;
     if(p.thirst>=6){kill(p,'verdurstet');L.push(`${p.name} ist verdurstet.`);return}
     if(p.hunger>=10){kill(p,'verhungert');L.push(`${p.name} ist verhungert.`);return}
-    if(p.sick){if(chance(.15+(p.thirst>=3?-.1:0))){p.sick=0;L.push(`${p.name} geht es wieder besser.`)}else if(chance(.32+(p.thirst>=3?.2:0))){p.sick++;if(p.sick>=4){kill(p,'an Krankheit gestorben');L.push(`${p.name} hat die Krankheit nicht überlebt.`);return}L.push(`${p.name} geht es schlechter.`)}}
-    if(p.hurt){if(chance(.2)){p.hurt=0;L.push(`${p.name}s Wunde ist verheilt.`)}else if(chance(.25)){p.hurt++;if(p.hurt>=4){kill(p,'an den Verletzungen gestorben');L.push(`${p.name} ist an den Verletzungen gestorben.`);return}L.push(`${p.name}s Wunde entzündet sich.`)}}
-    if(G.day%2===0)p.mood=Math.max(0,p.mood-1);
+    if(p.sick){if(chance(.15+(p.thirst>=3?-.1:0)+lvl('lazarett')*.1)){p.sick=0;L.push(`${p.name} geht es wieder besser.`)}else if(chance(.32+(p.thirst>=3?.2:0)-lvl('filter')*.08)){p.sick++;if(p.sick>=4){kill(p,'an Krankheit gestorben');L.push(`${p.name} hat die Krankheit nicht überlebt.`);return}L.push(`${p.name} geht es schlechter.`)}}
+    if(p.hurt){if(chance(.2+lvl('lazarett')*.1)){p.hurt=0;L.push(`${p.name}s Wunde ist verheilt.`)}else if(chance(.25)){p.hurt++;if(p.hurt>=4){kill(p,'an den Verletzungen gestorben');L.push(`${p.name} ist an den Verletzungen gestorben.`);return}L.push(`${p.name}s Wunde entzündet sich.`)}}
+    if(G.day%(2+lvl('betten'))===0)p.mood=Math.max(0,p.mood-1);
     if(p.hunger>=5||p.thirst>=3)p.mood=Math.max(0,p.mood-1);
     if(p.mood<=1&&chance(.22)&&aliveH().length>1){kill(p,'ist in den Wahnsinn geflohen');p.left=true;L.push(`${p.name} hat in der Nacht die Luke geöffnet und ist schreiend davongerannt. Ihr habt ${p.name} nie wiedergesehen.`)}
   });
   if((pet('moritz')||pet('zwei'))&&G.day%3===0)mood(+1);
+  const every=k=>[0,5,4,3][lvl(k)];
+  if(lvl('tank')&&G.day%every('tank')===0){add('wasser');L.push('Der Wassertank hat eine Flasche Kondenswasser gesammelt. 💧')}
+  if(lvl('pilz')&&G.day%every('pilz')===0){add('suppe');L.push('Die Pilzzucht ist reif: eine Portion Pilzsuppe. 🍄')}
   // Ausflüge
   G.people.forEach(p=>{if(p.alive&&p.away>0){p.away--;if(p.away===0)L.push(...returnFrom(p))}});
   G.day++;
   if(!aliveH().length){G.log=L;endGame('stille');return}
-  if(G.day>40){G.log=L;const s=aliveH();endGame(G.scen==='zombie'&&G.flags.fort>=2&&s.length>1?'festung':s.length===1?'allein':'licht');return}
+  if(G.day>40){G.log=L;const s=aliveH();endGame(G.scen==='zombie'&&G.flags.fort+lvl('tuer')>=2&&s.length>1?'festung':s.length===1?'allein':'licht');return}
   if(L.length===0||chance(.4)){const p=rp();L.push(FLAVOR[R(0,FLAVOR.length-1)].replace('{p}',nm(p)))}
   G.log=[`Tag ${G.day}.`,...L];
   setEvent(pickEvent());renderBunker();window.scrollTo({top:0,behavior:'smooth'});
@@ -817,6 +901,7 @@ function returnFrom(p){
   if(chance(death)){kill(p,'kam vom Ausflug nicht zurück');p.gear=[];out.push(`${p.name} ist nicht zurückgekehrt. Die Ausrüstung ist auch weg.`);sfx.bad();return out}
   g.forEach(k=>add(k));p.gear=[];
   const loot=[];const n=R(1,3)+(hasG('lampe')?1:0);for(let i=0;i<n;i++){const k=chance(.75)?pick(['suppe','suppe','wasser','wasser','wasser']):pick(['medi','karten','werkzeug','spray','buch','lampe']);add(k);loot.push(ITEMS[k].e)}
+  const sc=R(1,2)+(G.home==='wohnung'?1:0);add('schrott',sc);for(let i=0;i<sc;i++)loot.push('⚙️');
   out.push(`${p.name} ist zurück! Mitgebracht: ${loot.join(' ')}.`);p.hunger=Math.max(0,p.hunger-2);p.thirst=Math.max(0,p.thirst-1);
   if(G.scen==='atom'&&!hasG('maske')&&chance(.55)){p.sick=Math.max(1,p.sick);out.push(`Ohne Gasmaske hat ${p.name} zu viel Strahlung abbekommen.`)}
   if(G.scen==='zombie'){if(chance(hasG('axt')||hasG('armbrust')?.15:.3)){p.hurt=Math.max(1,p.hurt);out.push(`${p.name} hat Kratzer und Prellungen.`)}if(chance(.1)){p.bitten=true;queue('biss',0);out.push(`${p.name} versteckt den linken Arm hinter dem Rücken…`)}}
@@ -829,6 +914,7 @@ function sendOut(){const sel=document.querySelector('input[name="exp-who"]:check
   const gear=[...document.querySelectorAll('input[name="exp-gear"]:checked')].map(i=>i.value);gear.forEach(k=>take(k));
   p.gear=gear;p.away=R(2,4);delete G.ration[p.id];G.stats.exps++;sfx.click();
   G.log.push(`${p.name} ist nach draußen gegangen${gear.length?' mit '+gear.map(k=>ITEMS[k].e).join(' '):', ohne Ausrüstung'}.`);renderBunker()}
+function buildUp(k){const l=G.up[k]||0;if(l>=3)return;const c=UPG_RUN[l];if(G.inv.schrott<c)return;take('schrott',c);G.up[k]=l+1;sfx.good();G.log.push(`${UPG[k].e} ${UPG[k].n} auf Stufe ${l+1} ausgebaut!`);renderBunker()}
 function treat(id){const p=G.people.find(x=>x.id===id);if(!has('medi'))return;take('medi');p.sick=0;p.hurt=0;sfx.good();G.log.push(`${p.name} wurde mit Medizin behandelt.`);renderBunker()}
 function toggleR(id,k){const r=G.ration[id]||(G.ration[id]={});const key=k==='f'?'suppe':'wasser';if(!r[k]){const used=Object.values(G.ration).filter(x=>x[k]).length;if(used>=G.inv[key])return}r[k]=!r[k];sfx.click();renderBunker()}
 
@@ -843,7 +929,7 @@ function statusChips(p){const c=[];
   if(p.mood<=2)c.push('<span class="chip bad">verzweifelt</span>');else if(p.mood<=4)c.push('<span class="chip warn">bedrückt</span>');
   if(!c.length)c.push('<span class="chip ok">okay</span>');return c.join('')}
 function renderBunker(){
-  $('#day-t').textContent=`Tag ${G.day}`;$('#day-s').textContent=`${G.scen==='atom'?'☢️ Atomkrieg':'🧟 Zombie-Apokalypse'} · ${aliveH().length} am Leben · überlebt bis Tag 40`;
+  $('#day-t').textContent=`Tag ${G.day}`;$('#day-s').textContent=`${G.scen==='atom'?'☢️ Atomkrieg':'🧟 Zombie-Apokalypse'} · ${G.home==='wohnung'?'🏢 Wohnung':'🕳️ Bunker'} · ${aliveH().length} am Leben · überlebt bis Tag 40`;
   $('#journal').innerHTML=`<h3>Tagebuch</h3>${G.log.map(l=>`<p>${l}</p>`).join('')}`;
   // Ereignis
   const box=$('#event-box');
@@ -874,6 +960,11 @@ function renderBunker(){
       <div class="opts2">${GEAR.filter(k=>has(k)).map(k=>`<label><input type="checkbox" name="exp-gear" value="${k}">${ITEMS[k].e} ${ITEMS[k].n}</label>`).join('')}</div>
       <div><button class="btn ghost" type="button" id="btn-send" ${cand.length?'':'disabled'}>🎒 Losschicken</button></div>`;
     const bs=$('#btn-send');if(bs)bs.onclick=sendOut}
+  // Ausbau
+  const place=G.home==='wohnung'?'Wohnung':'Bunker';
+  $('#build-box').innerHTML=`<h3>${place} ausbauen · ${G.inv.schrott} ⚙️</h3><p class="small">Schrott findet ihr auf Ausflügen und bei Ereignissen.</p><div class="crew">${Object.keys(UPG).filter(k=>!UPG[k].meta).map(k=>{const l=G.up[k]||0,c=UPG_RUN[l];
+    return `<div class="up"><div class="e">${UPG[k].e}</div><div><b>${UPG[k].n}</b><div class="pips">${[0,1,2].map(i=>`<i class="${i<l?'f':''}"></i>`).join('')}</div><span>${upDesc(k,l>=3?3:l+1)}</span></div>${l>=3?'<span class="small">max</span>':`<button class="btn ghost" type="button" data-up="${k}" ${G.inv.schrott>=c?'':'disabled'}>${c} ⚙️</button>`}</div>`}).join('')}</div>`;
+  $('#build-box').querySelectorAll('[data-up]').forEach(b=>b.onclick=()=>buildUp(b.dataset.up));
   // Inventar
   $('#inv').innerHTML=Object.keys(ITEMS).map(k=>`<div class="it ${G.inv[k]?'':'zero'}"><span class="e">${ITEMS[k].e}</span><span>${ITEMS[k].n}</span><b>${G.inv[k]}</b></div>`).join('');
   const nb=$('#btn-next');nb.disabled=!!(G.ev&&!G.res);nb.textContent=G.res&&G.res.end?'➜ Zum Ende':(G.ev&&!G.res?'Erst das Ereignis entscheiden':'Tag beenden ➜');
@@ -883,20 +974,26 @@ $('#btn-next').onclick=()=>endDay();
 /* ---------- Bunker-Grafik ---------- */
 const ROCKS=Array.from({length:60},()=>({x:Math.random()*900,y:44+Math.random()*44,r:1+Math.random()*3}));
 function bunkerLoop(){const cv=$('#cv-bunker'),c=cv.getContext('2d'),W=900,H=340,t=BUNK.t+=1/60;const z=G.scen==='zombie';
+  const rx=40,ry=96,rw=820,rh=220;
+  if(G.home==='wohnung')drawFlat(c,W,H,t,rx,ry,rw,rh);else{
   const sky=c.createLinearGradient(0,0,0,44);if(z){sky.addColorStop(0,'#0a1614');sky.addColorStop(1,'#29443a')}else{sky.addColorStop(0,'#2a1210');sky.addColorStop(1,'#a8501f')}c.fillStyle=sky;c.fillRect(0,0,W,44);
   c.fillStyle=z?'#0c1513':'#1d0f0b';BUILD.forEach(b=>{const h=b.h*.22;c.fillRect(b.x,44-h,b.w*.9,h);if(!z&&b.win>.6){c.fillStyle='#1d0f0b'}});
   if(z){for(let i=0;i<5;i++){const zx=(i*190+t*8)%(W+40)-20;drawZombieSil(c,zx,44,.45,t+i)}}else{c.fillStyle='rgba(255,180,120,.25)';for(let i=0;i<30;i++)c.fillRect((i*67+t*15)%W,(i*13+t*10)%40,2,2)}
   const e=c.createLinearGradient(0,44,0,92);e.addColorStop(0,'#3d2c1f');e.addColorStop(1,'#2a1f17');c.fillStyle=e;c.fillRect(0,44,W,48);c.fillStyle='#4f3b2a';ROCKS.forEach(r=>{c.beginPath();c.arc(r.x,r.y,r.r,0,7);c.fill()});
   c.fillStyle='#1d1613';c.fillRect(0,92,W,H-92);
   // Raum
-  const rx=40,ry=96,rw=820,rh=220;const wg=c.createLinearGradient(0,ry,0,ry+rh);wg.addColorStop(0,'#4b524f');wg.addColorStop(1,'#3a403e');c.fillStyle=wg;c.fillRect(rx,ry,rw,rh);
+  const wg=c.createLinearGradient(0,ry,0,ry+rh);wg.addColorStop(0,'#4b524f');wg.addColorStop(1,'#3a403e');c.fillStyle=wg;c.fillRect(rx,ry,rw,rh);
   c.strokeStyle='rgba(0,0,0,.18)';c.lineWidth=1;for(let x=rx;x<rx+rw;x+=82){c.beginPath();c.moveTo(x,ry);c.lineTo(x,ry+rh);c.stroke()}for(let y=ry;y<ry+rh;y+=55){c.beginPath();c.moveTo(rx,y);c.lineTo(rx+rw,y);c.stroke()}
   c.fillStyle='#2c302f';c.fillRect(rx,ry+rh-22,rw,22);c.fillStyle='#232726';c.fillRect(rx,ry+rh-22,rw,3);
   // Schacht + Leiter
   c.fillStyle='#2f3433';c.fillRect(70,44,60,ry-44+10);c.fillStyle='#f2b632';c.fillRect(64,40,72,8);c.fillStyle='#1a1a1a';for(let i=0;i<8;i++)c.fillRect(66+i*9,40,4,8);
   c.strokeStyle='#8a8f8c';c.lineWidth=4;c.beginPath();c.moveTo(84,46);c.lineTo(84,ry+rh-22);c.moveTo(116,46);c.lineTo(116,ry+rh-22);c.stroke();c.lineWidth=3;for(let y=60;y<ry+rh-22;y+=18){c.beginPath();c.moveTo(84,y);c.lineTo(116,y);c.stroke()}
+  if(lvl('tuer')){c.fillStyle='#6d7478';c.fillRect(58,30,84,10+lvl('tuer')*3);c.fillStyle='#3a3f42';for(let i=0;i<5;i++){c.beginPath();c.arc(66+i*17,35,2.5,0,7);c.fill()}}
+  if(lvl('antenne')){c.strokeStyle='#9aa';c.lineWidth=2;c.beginPath();c.moveTo(200,44);c.lineTo(200,8);c.moveTo(192,16);c.lineTo(208,16);c.moveTo(194,26);c.lineTo(206,26);c.stroke();c.fillStyle=Math.sin(t*4)>0?'#f44':'#600';c.beginPath();c.arc(200,7,3,0,7);c.fill()}
+  }
+  drawUpgrades(c,t,rx,ry,rw,rh);
   // Strichliste
-  c.strokeStyle='rgba(230,225,210,.55)';c.lineWidth=2;for(let i=0;i<G.day;i++){const grp=Math.floor(i/5),k=i%5,bx=160+grp*30+(grp>=8?-240:0),by=118+(grp>=8?26:0);if(k<4){c.beginPath();c.moveTo(bx+k*5,by);c.lineTo(bx+k*5,by+16);c.stroke()}else{c.beginPath();c.moveTo(bx-3,by+12);c.lineTo(bx+19,by+3);c.stroke()}}
+  c.strokeStyle='rgba(230,225,210,.55)';c.lineWidth=2;for(let i=0;i<G.day;i++){const grp=Math.floor(i/5),k=i%5,wo=G.home==='wohnung',per=wo?6:8,bx=(wo?660:160)+(grp%per)*30,by=(wo?60:118)+Math.floor(grp/per)*26;if(k<4){c.beginPath();c.moveTo(bx+k*5,by);c.lineTo(bx+k*5,by+16);c.stroke()}else{c.beginPath();c.moveTo(bx-3,by+12);c.lineTo(bx+19,by+3);c.stroke()}}
   // Regale
   const sx=640;c.fillStyle='#5a3d26';[170,222,274].forEach(y=>c.fillRect(sx,y,200,6));c.fillRect(sx,150,6,130);c.fillRect(sx+194,150,6,130);
   c.font='20px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';c.textAlign='center';c.textBaseline='alphabetic';
@@ -905,7 +1002,7 @@ function bunkerLoop(){const cv=$('#cv-bunker'),c=cv.getContext('2d'),W=900,H=340
   // Gedenkkerzen
   const dead=G.people.filter(p=>!p.alive);dead.forEach((p,i)=>{const x=560-i*22,y=ry+rh-22;c.fillStyle='#e9e2c8';c.fillRect(x-3,y-14,6,14);const fl=Math.sin(t*9+i)*1.5;c.fillStyle='#ffb340';c.beginPath();c.ellipse(x,y-18+fl*.3,3,5+fl*.5,0,0,7);c.fill();c.fillStyle='rgba(255,180,60,.12)';c.beginPath();c.arc(x,y-18,16,0,7);c.fill()});
   // Lampe
-  const swing=Math.sin(t*.9)*.08,lx=450+Math.sin(swing)*60,ly=ry+60;c.strokeStyle='#111';c.lineWidth=2;c.beginPath();c.moveTo(450,ry);c.lineTo(lx,ly);c.stroke();
+  const swing=Math.sin(t*.9)*.08,lx=450+Math.sin(swing)*60,ly=ry+60;c.strokeStyle='#111';c.lineWidth=2;c.beginPath();c.moveTo(450,G.home==='wohnung'?26:ry);c.lineTo(lx,ly);c.stroke();
   const flick=(G.flags.strom||Math.random()>.03)?1:.3;
   // Personen
   const ins=G.people.filter(p=>p.alive&&!p.away);const n=ins.length;ins.forEach((p,i)=>{const x=n===1?390:190+i*(400/(n-1));drawPerson(c,x,ry+rh-22,1.25,p,t)});
@@ -916,21 +1013,78 @@ function bunkerLoop(){const cv=$('#cv-bunker'),c=cv.getContext('2d'),W=900,H=340
   const vg=c.createRadialGradient(W/2,H*.65,120,W/2,H*.6,520);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,`rgba(0,0,0,${flick<1?.85:.6})`);c.fillStyle=vg;c.fillRect(0,0,W,H);
   BUNK.raf=requestAnimationFrame(bunkerLoop)}
 
+function drawFlat(c,W,H,t,rx,ry,rw,rh){
+  c.fillStyle='#3b2f28';c.fillRect(0,0,W,H);
+  const wp=c.createLinearGradient(0,0,0,H);wp.addColorStop(0,'#5d4b3c');wp.addColorStop(1,'#46372c');c.fillStyle=wp;c.fillRect(0,20,W,H-20);
+  c.fillStyle='rgba(255,255,255,.04)';for(let x=0;x<W;x+=28)c.fillRect(x,20,12,H);
+  c.fillStyle='#2a201a';c.fillRect(0,0,W,22);c.fillStyle='#6b5646';c.fillRect(0,22,W,4);
+  // Boden
+  c.fillStyle='#6a4a2e';c.fillRect(0,ry+rh-22,W,H);c.fillStyle='rgba(0,0,0,.15)';for(let x=0;x<W;x+=60)c.fillRect(x,ry+rh-22,2,H);
+  // Fenster
+  const fort=(G.flags.fort||0)+lvl('tuer');
+  [[210,60],[380,60]].forEach(([wx,wy],wi)=>{const ww=110,wh=110;
+    const sk=c.createLinearGradient(0,wy,0,wy+wh);sk.addColorStop(0,'#0a1614');sk.addColorStop(1,'#2a4a3a');c.fillStyle=sk;c.fillRect(wx,wy,ww,wh);
+    if(wi===1){c.fillStyle='#d7e8c0';c.beginPath();c.arc(wx+80,wy+28,12,0,7);c.fill()}
+    c.fillStyle='#0b1310';for(let i=0;i<4;i++)c.fillRect(wx+i*30,wy+70-((i*13)%30),26,60);
+    c.save();c.beginPath();c.rect(wx,wy,ww,wh);c.clip();const zx=wx+((t*14+wi*60)%(ww+60))-30;drawZombieSil(c,zx,wy+wh+4,.9,t+wi);
+    if(Math.sin(t*.7+wi*2)>.85){c.fillStyle='#6f8a5a';c.fillRect(wx+30,wy+wh-30,8,30);c.fillRect(wx+70,wy+wh-26,8,26)}c.restore();
+    c.strokeStyle='#e8dcc4';c.lineWidth=6;c.strokeRect(wx,wy,ww,wh);c.lineWidth=3;c.beginPath();c.moveTo(wx+ww/2,wy);c.lineTo(wx+ww/2,wy+wh);c.stroke();
+    const planks=2+Math.min(3,fort);for(let i=0;i<planks;i++){c.save();c.translate(wx+ww/2,wy+20+i*(wh-30)/Math.max(1,planks-1));c.rotate((i%2?.12:-.1));c.fillStyle='#8a6a42';c.fillRect(-ww/2-12,-7,ww+24,14);c.fillStyle='#333';c.fillRect(-ww/2-6,-2,4,4);c.fillRect(ww/2+2,-2,4,4);c.restore()}});
+  // Tür links
+  c.fillStyle='#4a3020';c.fillRect(rx+10,ry-10,80,rh-12);c.fillStyle='#d9b44a';c.beginPath();c.arc(rx+78,ry+rh/2-10,4,0,7);c.fill();
+  c.fillStyle='#ddd';c.fillRect(rx+10,ry-40,80,4);
+  for(let i=0;i<Math.min(4,1+fort);i++){c.fillStyle='#8a6a42';c.save();c.translate(rx+50,ry+20+i*40);c.rotate(i%2?.18:-.18);c.fillRect(-52,-6,104,12);c.restore()}
+  // Bilderrahmen
+  c.strokeStyle='#c9a66a';c.lineWidth=4;c.strokeRect(560,70,50,40);c.fillStyle='#7aa0c0';c.fillRect(562,72,46,36);c.fillStyle='#4f7a35';c.fillRect(562,96,46,12);
+}
+function drawUpgrades(c,t,rx,ry,rw,rh){const fy=ry+rh-22;
+  if(lvl('tank')){const x=135;c.fillStyle='#4f6a7a';rrect(c,x,fy-64,40,64,6);c.fill();c.fillStyle='#3a4f5c';c.fillRect(x,fy-50,40,4);c.fillRect(x,fy-22,40,4);c.fillStyle='#8fc7e0';c.fillRect(x+16,fy-60,8,8);c.font='bold 11px Archivo Narrow, Arial';c.fillStyle='#cfe';c.textAlign='center';c.fillText('H₂O',x+20,fy-30)}
+  if(lvl('pilz')){const x=470,y=150;c.fillStyle='#4a3420';c.fillRect(x,y,80,14);for(let i=0;i<2+lvl('pilz')*2;i++){const mx=x+8+i*10,b=Math.sin(t*2+i)*.5;c.fillStyle='#e8dcc4';c.fillRect(mx-1,y-8,3,8);c.fillStyle=i%2?'#c96f3a':'#d9a45a';c.beginPath();c.arc(mx,y-8+b,6,Math.PI,0);c.fill()}}
+  if(lvl('betten')){const x=230,y=fy-78;c.fillStyle='rgba(90,60,40,.75)';c.fillRect(x,y,140,6);c.fillRect(x,y+40,140,6);c.fillRect(x,y-10,6,88);c.fillRect(x+134,y-10,6,88);c.fillStyle='rgba(150,60,60,.6)';c.fillRect(x+6,y-6,128,8);c.fillStyle='rgba(60,90,150,.6)';c.fillRect(x+6,y+34,128,8);
+    if(lvl('betten')>=2){c.fillStyle='rgba(140,50,40,.6)';c.beginPath();c.ellipse(450,fy+8,140,9,0,0,7);c.fill()}}
+  if(lvl('filter')){const x=610,y=118;c.fillStyle='#2a2f31';c.beginPath();c.arc(x,y,18,0,7);c.fill();c.save();c.translate(x,y);c.rotate(t*(3+lvl('filter')*2));c.fillStyle='#9aa4a8';for(let i=0;i<4;i++){c.rotate(Math.PI/2);c.beginPath();c.ellipse(8,0,8,3.5,0,0,7);c.fill()}c.restore();c.strokeStyle='#5a6266';c.lineWidth=2;c.beginPath();c.arc(x,y,18,0,7);c.stroke()}
+  if(lvl('lazarett')){const x=560,y=180;c.fillStyle='#eee';rrect(c,x,y,34,26,4);c.fill();c.fillStyle='#d33';c.fillRect(x+14,y+5,6,16);c.fillRect(x+9,y+10,16,6)}
+  if(lvl('antenne')&&G&&G.home==='wohnung'){c.fillStyle='#333';c.fillRect(520,190,28,18);c.strokeStyle='#999';c.lineWidth=2;c.beginPath();c.moveTo(540,190);c.lineTo(552,160);c.stroke();c.fillStyle=Math.sin(t*4)>0?'#f44':'#600';c.beginPath();c.arc(552,159,2.5,0,7);c.fill()}
+}
+
+/* ================= Ausbau-Bildschirm ================= */
+const UPV={raf:0,t:0};
+function openUpg(){cancelAnimationFrame(TITLE.raf);cancelAnimationFrame(ENDV.raf);G=null;show('scr-upg');renderUpg();cancelAnimationFrame(UPV.raf);UPV.raf=requestAnimationFrame(upgLoop)}
+function renderUpg(){$('#upg-scrap').textContent=META.scrap;
+  $('#upg-list').innerHTML=Object.keys(UPG).map(k=>{const l=META.lv[k]||0,c=UPG_META[l];
+    return `<div class="up"><div class="e">${UPG[k].e}</div><div><b>${UPG[k].n}</b><div class="pips">${[0,1,2].map(i=>`<i class="${i<l?'f':''}"></i>`).join('')}</div><span>${upDesc(k,l>=3?3:l+1)}</span></div>${l>=3?'<span class="small">max</span>':`<button class="btn" type="button" data-mu="${k}" ${META.scrap>=c?'':'disabled'}>${c} ⚙️</button>`}</div>`}).join('');
+  $('#upg-list').querySelectorAll('[data-mu]').forEach(b=>b.onclick=()=>{const k=b.dataset.mu,l=META.lv[k]||0,c=UPG_META[l];if(META.scrap<c||l>=3)return;META.scrap-=c;META.lv[k]=l+1;saveMeta();sfx.good();renderUpg()})}
+function upgLoop(){const cv=$('#cv-upg'),c=cv.getContext('2d'),t=UPV.t+=1/60;const rx=40,ry=96,rw=820,rh=220;
+  const fakeG=G;G=null;
+  c.fillStyle='#1d1613';c.fillRect(0,0,900,340);const e=c.createLinearGradient(0,0,0,92);e.addColorStop(0,'#3d2c1f');e.addColorStop(1,'#2a1f17');c.fillStyle=e;c.fillRect(0,0,900,92);
+  const wg=c.createLinearGradient(0,ry,0,ry+rh);wg.addColorStop(0,'#4b524f');wg.addColorStop(1,'#3a403e');c.fillStyle=wg;c.fillRect(rx,ry,rw,rh);
+  c.fillStyle='#2c302f';c.fillRect(rx,ry+rh-22,rw,22);
+  c.strokeStyle='#8a8f8c';c.lineWidth=4;c.beginPath();c.moveTo(84,0);c.lineTo(84,ry+rh-22);c.moveTo(116,0);c.lineTo(116,ry+rh-22);c.stroke();c.lineWidth=3;for(let y=14;y<ry+rh-22;y+=18){c.beginPath();c.moveTo(84,y);c.lineTo(116,y);c.stroke()}
+  if(lvl('tuer')){c.fillStyle='#6d7478';c.fillRect(58,ry-14,84,10+lvl('tuer')*3)}
+  if(lvl('lager')){c.fillStyle='#5a3d26';for(let i=0;i<lvl('lager');i++){c.fillRect(660,150+i*45,180,6)}c.font='22px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';for(let i=0;i<lvl('lager')*4;i++)c.fillText(['📦','🥫','💧','🧰'][i%4],670+(i%4)*42,148+Math.floor(i/4)*45)}
+  drawUpgrades(c,t,rx,ry,rw,rh);
+  if(!Object.values(META.lv).some(Boolean)){c.font='bold 20px Archivo Narrow, Arial';c.fillStyle='rgba(230,225,210,.6)';c.textAlign='center';c.fillText('Noch ein leerer Betonraum. Bau ihn aus!',450,200)}
+  const vg=c.createRadialGradient(450,220,120,450,200,520);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.6)');c.fillStyle=vg;c.fillRect(0,0,900,340);
+  G=fakeG;UPV.raf=requestAnimationFrame(upgLoop)}
+$('#btn-upg').onclick=()=>{sfx.click();openUpg()};
+$('#btn-end-upg').onclick=()=>{sfx.click();openUpg()};
+$('#btn-upg-back').onclick=()=>{cancelAnimationFrame(UPV.raf);toMenu()};
+
 /* ================= Enden ================= */
 const ENDV={raf:0,t:0,id:null};
 function endText(id,ctx){const s=G?aliveH():[];const names=s.map(p=>p.name).join(', ');const d=G?G.day:0;
   switch(id){
     case 'zuspaet':return `${ctx.runner.name} war noch im Haus, als ${ctx.scen==='atom'?'das grelle Licht kam':'die Horde durch die Tür brach'}. Die Luke im Garten fiel ins Schloss. ${ctx.saved.length?'Unten im Bunker warten '+ctx.saved.map(f=>f.name).join(', ')+'. Sie werden lange warten.':'Der Bunker bleibt leer.'}`;
-    case 'stille':return `An Tag ${d} brennt die letzte Kerze herunter. Im Bunker ist es still. Wer ihn eines Tages öffnet, findet ein Tagebuch voller Strichlisten und eine Notiz: „Wir haben es versucht.“`;
+    case 'stille':return `An Tag ${d} brennt die letzte Kerze herunter. Im ${G.home==='wohnung'?'verrammelten Wohnzimmer':'Bunker'} ist es still. Wer eines Tages hereinkommt, findet ein Tagebuch voller Strichlisten und eine Notiz: „Wir haben es versucht.“`;
     case 'konvoi':return `Der Katastrophenschutz bringt ${names} in ein Auffanglager hinter den Bergen. Duschen. Echtes Brot. Fremde, die weinen, weil sie euch sehen. Nach ${d} Tagen unter der Erde ist der Himmel unwirklich blau.`;
     case 'zone':return `${s.length?names+' erreichen':'Niemand erreicht'} nach drei harten Tagen das Notlager Nord. Zwischen Zelten und Lagerfeuern beginnt ein neues, karges Leben. Aber es ist ein Leben.`;
     case 'tunnel':return `Unter der Stadt liegt eine zweite Stadt. Pilzgärten in alten Bahnsteigen, eine Schule im Stellwerk, ein Markt auf Gleis 2. ${names} bekommen eine eigene Nische. Die Sonne vermissen sie. Manchmal.`;
     case 'bande':return `Die Asche-Wölfe nehmen euch auf. ${names} lernen, wie man plündert, droht und überlebt. Satt seid ihr jetzt immer. Ob ihr noch die Familie von früher seid, fragt ihr euch nicht mehr.`;
     case 'heli':return `Der Hubschrauber trägt ${names} über eine Stadt voller wandelnder Schatten. Auf einem Flugzeugträger vor der Küste gibt es Strom, Ärzte und eine heiße Dusche. Ihr habt es geschafft.`;
     case 'heilmittel':return `Mit eurer Medizin stellt Dr. Varga die Testreihe fertig. Wochen später fallen Kisten mit Impfstoff vom Himmel. Die Zombies werden langsamer, dann still. ${names} gelten als die Familie, die die Welt gerettet hat.`;
-    case 'festung':return `Tag 40. Der Bunker ist eine Festung aus Stahl und Brettern. Andere Überlebende kommen dazu, ein Garten wächst auf dem Dach der Garage. ${names} haben nicht nur überlebt. Sie haben etwas aufgebaut.`;
+    case 'festung':return `Tag 40. ${G.home==='wohnung'?'Das ganze Wohnhaus':'Der Bunker'} ist eine Festung aus Stahl und Brettern. Andere Überlebende kommen dazu, ein Garten wächst auf dem Dach der Garage. ${names} haben nicht nur überlebt. Sie haben etwas aufgebaut.`;
     case 'verwandelt':return 'In der Enge des Bunkers breitet sich die Infektion aus. Am nächsten Morgen kratzt es an der Luke. Diesmal von innen.';
-    case 'licht':return `Tag 40. Ihr öffnet die Luke und blinzelt ins Licht. ${G.scen==='atom'?'Die Strahlung ist abgeklungen, die Welt ist grau, aber Gras wächst durch die Asche.':'Die Straßen sind leer, die Horde ist weitergezogen.'} ${names} haben überlebt.`;
+    case 'licht':return `Tag 40. ${G.home==='wohnung'?'Ihr reißt die Bretter von den Fenstern':'Ihr öffnet die Luke'} und blinzelt ins Licht. ${G.scen==='atom'?'Die Strahlung ist abgeklungen, die Welt ist grau, aber Gras wächst durch die Asche.':'Die Straßen sind leer, die Horde ist weitergezogen.'} ${names} haben überlebt.`;
     case 'allein':return `Tag 40. ${names} steigt die Leiter hinauf. Allein. Die Welt da oben ist leer und still. Aber irgendwo, ganz weit weg, steigt Rauch von einem Lagerfeuer auf.`;
   }return ''}
 function endGame(id,ctx={}){
@@ -938,9 +1092,10 @@ function endGame(id,ctx={}){
   const E=ENDINGS[id];ENDV.id=id;ENDV.scen=G?G.scen:ctx.scen;ENDV.people=G?aliveH():[];
   $('#end-tag').textContent=isNew?'Neues Ende entdeckt':'Ende';$('#end-title').textContent=`${E.e} ${E.t}`;
   const good=['konvoi','zone','tunnel','heli','heilmittel','festung','licht'].includes(id);good?sfx.good():sfx.bad();
+  const earned=id==='zuspaet'?3:(G?G.day*2+(G.inv.schrott||0):0)+(good?15:0);META.scrap+=earned;saveMeta();
   $('#end-text').innerHTML=`<p>${endText(id,ctx)}</p>${G&&G.dead.length?`<p>In Erinnerung an: ${G.dead.join(', ')}.</p>`:''}`;
   const keys=Object.keys(ENDINGS);
-  $('#end-stats').innerHTML=G?`<div><b>${G.day}</b>Tage</div><div><b>${aliveH().length}/${humans().length}</b>Überlebende</div><div><b>${G.stats.exps}</b>Ausflüge</div><div><b>${keys.filter(k=>seen[k]).length}/${keys.length}</b>Enden entdeckt</div>`:`<div><b>${keys.filter(k=>seen[k]).length}/${keys.length}</b>Enden entdeckt</div>`;
+  $('#end-stats').innerHTML=`<div><b>+${earned} ⚙️</b>für den Bunkerausbau</div>`+(G?`<div><b>${G.day}</b>Tage</div><div><b>${aliveH().length}/${humans().length}</b>Überlebende</div><div><b>${G.stats.exps}</b>Ausflüge</div><div><b>${keys.filter(k=>seen[k]).length}/${keys.length}</b>Enden entdeckt</div>`:`<div><b>${keys.filter(k=>seen[k]).length}/${keys.length}</b>Enden entdeckt</div>`);
   show('scr-end');ENDV.t=0;cancelAnimationFrame(ENDV.raf);ENDV.raf=requestAnimationFrame(endLoop);G=null;
 }
 function endLoop(){const cv=$('#cv-end'),c=cv.getContext('2d'),W=cv.width,H=cv.height,t=ENDV.t+=1/60,id=ENDV.id;

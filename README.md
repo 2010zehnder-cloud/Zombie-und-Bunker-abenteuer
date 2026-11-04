@@ -10,6 +10,14 @@ Ein Überlebensspiel im Browser: **Atomkrieg** oder **Zombie-Apokalypse**.
 4. **Im Bunker**: Jeden Tag gibt es ein Ereignis mit Entscheidungen, du verteilst Suppe 🥫 und Wasser 💧, behandelst Kranke 💊 und schickst Leute auf Ausflüge nach draußen.
 5. **Überlebe bis Tag 40** oder finde einen anderen Ausweg.
 
+## 🔧 Bunker ausbauen
+
+Nach jeder Runde gibt es ⚙️ Schrott (2 pro überlebtem Tag, 15 für ein gutes Ende, plus Reste im Lager). Im Menü unter „Bunker ausbauen“ kaufst du damit dauerhafte Upgrades: Wassertank, Pilzzucht, Betten, Panzertür, Luftfilter, Krankenecke, Funkantenne und Vorratsraum (mehr Packplätze). Jedes Upgrade hat 3 Stufen und ist im Bunker zu sehen. Im Spiel findest du außerdem Schrott auf Ausflügen und kannst damit weiterbauen.
+
+## 🏢 Wohnung (nur Zombies)
+
+Statt in den Bunker kann die Familie in der Wohnung im 3. Stock bleiben: 6 Packplätze mehr und eine volle Küche, aber fast jeden Tag greifen Zombies an (Tür, Balkon, Treppenhaus, Decke). Mit Barrikaden wird die Wohnung zur Festung.
+
 ## 12 Enden
 
 Der Konvoi, Notlager Nord, Die Tunnelstadt, Die Asche-Wölfe, Der letzte Hubschrauber, Das Heilmittel, Die Festung, Zurück ans Licht, Der letzte Mensch, Einer von ihnen, Stille im Bunker und Die Luke fiel zu. Entdeckte Enden werden im Browser gespeichert.
