@@ -8,7 +8,11 @@ Ein Überlebensspiel im Browser: **Atomkrieg**, **Eiszeit** oder **Zombie-Apokal
 2. **Packen**: Die ganze Familie ist automatisch im Bunker. Du suchst in Ruhe 12 Dinge aus (Suppe, Wasser, Axt, Radio …) oder lässt per 🎲 zufällig packen.
 3. **Optional, Action-Modus**: Wer will, rennt stattdessen selbst 45 Sekunden durchs Haus und sammelt Familie und Vorräte ein (4 Plätze, alles braucht 1 Platz). Bei den Zombies bricht nach ein paar Sekunden einer ins Haus ein.
 4. **Im Bunker**: Jeden Tag gibt es ein Ereignis mit Entscheidungen, du verteilst Suppe 🥫 und Wasser 💧, behandelst Kranke 💊 und schickst Leute auf Ausflüge nach draußen.
-5. **Überlebe bis Tag 40** oder finde einen anderen Ausweg.
+5. **Überlebe bis Tag 30** oder finde einen anderen Ausweg.
+
+## ⚔️ Kämpfe als Minispiel
+
+Bei Kämpfen (mit ⚔️ markiert) startet ein kurzes Action-Spiel: Zombies, Plünderer, Eisbären oder Ratten tauchen auf und werden größer. Tippe sie an, bevor sie dich erreichen. Mit der Armbrust hast du mehr Zeit, mit der Bratpfanne weniger. Wer gewinnt, bleibt heil und findet manchmal Beute.
 
 ## 🔧 Bunker ausbauen
 

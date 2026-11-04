@@ -149,6 +149,12 @@ canvas{display:block;max-width:100%}
 @media (max-width:520px){.diffrow{grid-template-columns:minmax(0,1fr)}}
 .endchip.ach{flex-direction:row}
 .endchip small{display:block;color:var(--mute);font-size:12px}
+.fight{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.82);display:grid;place-items:center;padding:16px max(16px, env(safe-area-inset-right, 0px)) 16px max(16px, env(safe-area-inset-left, 0px))}
+.fbox{width:min(900px,100%);display:flex;flex-direction:column;gap:8px}
+.fhead{display:flex;justify-content:space-between;align-items:flex-end;gap:10px}
+.fhead b{font-family:var(--display);font-weight:400;font-size:clamp(20px,5vw,30px);color:var(--amber)}
+.fstat{display:flex;gap:14px;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+#cv-fight{width:100%;height:auto;border-radius:10px;border:2px solid var(--blood);touch-action:manipulation;cursor:crosshair}
 .gtoast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom, 0px));transform:translateX(-50%);z-index:50;background:#2b2715;border:1px solid var(--amber);color:var(--fg);border-radius:10px;padding:10px 16px;font-weight:700;box-shadow:0 8px 30px rgba(0,0,0,.5);max-width:calc(100% - 32px)}
 .trait{font-size:12px;color:var(--mute);margin-top:2px}
 body.night{--panel:#14191b;--panel2:#1b2225;--line:#2c3538;--paper:#c9c0a6}
@@ -305,6 +311,11 @@ body.night .event::before{background:repeating-linear-gradient(-45deg,#6a7fb0 0 
 </div>
 
 <div class="gtoast" id="gtoast" hidden></div>
+<div class="fight" id="fight" hidden><div class="fbox">
+  <div class="fhead"><div><div class="small" id="f-sub">Kampf</div><b id="f-title"></b></div><div class="fstat"><span id="f-lives"></span><span id="f-count"></span></div></div>
+  <canvas id="cv-fight" width="800" height="450"></canvas>
+  <p class="small" id="f-help">Tippe die Gegner an, bevor sie dich erreichen! (Leertaste trifft den nächsten)</p>
+</div></div>
 <script>
 'use strict';
 /* ================= Helfer ================= */
@@ -356,8 +367,9 @@ const saveMeta=()=>store.set('b45-meta',META);
 const lvl=k=>G&&G.up?(G.up[k]||0):(META.lv[k]||0);
 const upDesc=(k,l)=>UPG[k].d.replace(/\{([^}]*)\}/g,(_,a)=>a.split('|')[Math.max(0,Math.min(2,l-1))]);
 const strong=()=>G&&G.people.some(p=>p.id==='jens'&&p.alive&&!p.away&&p.hurt<2);
-const risk=b=>chance(Math.max(.05,b-lvl('tuer')*.12+D().risk-(strong()?.1:0)));
+const risk=b=>{if(G&&typeof G.fightWin==='boolean'){G.riskUsed=true;return !G.fightWin}return chance(Math.max(.05,b-lvl('tuer')*.12+D().risk-(strong()?.1:0)))};
 let HOME='bunker';
+const GOAL=30;
 /* Schwierigkeit */
 const DIFF={leicht:{n:'Leicht',d:'+4 Packplätze, weniger Gefahr',pack:4,risk:-.1,thirst:7,hunger:12,cold:8,atk:.4,exp:-.05},
   normal:{n:'Normal',d:'So wie gedacht',pack:0,risk:0,thirst:6,hunger:10,cold:6,atk:.55,exp:0},
@@ -373,9 +385,9 @@ const TRAITS={jens:['💪 Stark','weniger Verletzungen bei Kämpfen','🍖 Vielf
   tina:['🏃 Läuferin','findet auf Ausflügen mehr'],emil:['🍀 Glückskind','Ausflüge sind sicherer, solange er da ist'],zwei:['🐕 Wachhund','hebt die Stimmung']};
 const traitLine=id=>{const t=TRAITS[id];if(!t)return '';return `<span title="${t[1]}">${t[0]}</span>`+(t[2]?` · <span title="${t[3]}">${t[2]}</span>`:'')};
 /* Erfolge */
-const ACH={nodeath:['🏅','Alle durchgebracht','Tag 40 ohne einen einzigen Toten'],catonly:['🐈','Nur der Kater','Moritz überlebt als Letzter'],
+const ACH={nodeath:['🏅','Alle durchgebracht','Bis zum Ende ohne einen einzigen Toten'],catonly:['🐈','Nur der Kater','Moritz überlebt als Letzter'],
   pfanne:['🍳','Excalibur','3 Zombies mit der Bratpfanne erledigt'],sammler:['📜','Sammler','8 verschiedene Enden entdeckt'],
-  albtraum:['😈','Albtraum-Meister','Ein gutes Ende auf Albtraum'],wohnung40:['🏢','Hausbesetzer','In der Wohnung bis Tag 40 überlebt'],
+  albtraum:['😈','Albtraum-Meister','Ein gutes Ende auf Albtraum'],wohnung40:['🏢','Hausbesetzer','In der Wohnung bis zum Ende überlebt'],
   eiskalt:['🧊','Eiskalt','Ein gutes Ende in der Eiszeit'],speed:['⚡','Schnell gerettet','Ein gutes Ende vor Tag 12'],
   geheim:['🔮','Geheimnisvoll','Ein geheimes Ende gefunden'],ausflug:['🎒','Abenteurer','5 Ausflüge in einer Runde'],
   vollausbau:['🔧','Baumeister','Ein Upgrade auf Stufe 3'],hund:['🐶','Zwei Köpfe, ein Herz','Den Hund mit zwei Köpfen aufgenommen'],
@@ -1011,13 +1023,60 @@ const FLAVOR=['{p} zählt die Dosen zum dritten Mal.','{p} kritzelt Strichmännc
 
 /* ---------- Tagesablauf ---------- */
 function canUse(ch){if(ch.need&&!has(ch.need))return `braucht ${ITEMS[ch.need].e}`;if(ch.use&&!has(ch.use))return `verbraucht ${ITEMS[ch.use].e}`;if(ch.cond&&!ch.cond())return 'nicht möglich';return ''}
-function choose(i){const e=G.ev,ch=e.choices[i];if(canUse(ch))return;sfx.click();if(ch.use)take(ch.use);let r=ch.fn();G.stats.events++;
-  if(typeof r==='object'){G.res={text:r.text,end:r.end}}else G.res={text:r};clearInterval(G.voteT);renderBunker()}
+const FIGHTS={krabbler:{1:'axt'},pluenderer:{1:'armbrust'},kratzen:{0:'armbrust',1:'axt'},zhund:{0:'armbrust',1:'axt'},e_baer:{2:'axt'},
+  a_tuer:{0:'armbrust',1:'axt',3:'none'},a_fenster:{0:'armbrust',1:'axt',2:'none'},a_nachbar:{0:'axt',1:'none'},a_treppe:{1:'axt'},n_schrei:{0:'armbrust'}};
+const foeFor=id=>({krabbler:G.scen==='atom'?'🪳':'🐀',pluenderer:'💀',zhund:'🐺',e_baer:'🐻‍❄️'}[id]||'🧟');
+function choose(i){const e=G.ev,ch=e.choices[i];if(canUse(ch)||G.fighting)return;sfx.click();
+  const w=(FIGHTS[e.id]||{})[i];
+  if(w){G.fighting=true;clearInterval(G.voteT);startFight({weapon:w,foe:foeFor(e.id),title:G.evTitle},win=>{G.fighting=false;G.fightWin=win;resolveChoice(ch);G.fightWin=undefined});return}
+  resolveChoice(ch)}
+function resolveChoice(ch){G.riskUsed=false;if(ch.use)take(ch.use);let r=ch.fn();G.stats.events++;
+  if(typeof r!=='object')r={text:r};
+  if(typeof G.fightWin==='boolean'){
+    if(G.fightWin){r.text='💥 Kampf gewonnen! '+r.text;if(chance(.5)){add('schrott');r.text+=' Beute: +1 ⚙️.'}}
+    else{r.text='💢 Kampf verloren! '+r.text;if(!G.riskUsed){const p=hurtRandom();if(p)r.text+=` Im Getümmel wurde ${p.name} verletzt.`}shakeStage()}}
+  G.res={text:r.text,end:r.end};clearInterval(G.voteT);renderBunker()}
+function shakeStage(){const el=$('#cv-bunker').parentElement;el.animate?.([{transform:'translate(0,0)'},{transform:'translate(-8px,3px)'},{transform:'translate(7px,-3px)'},{transform:'translate(-4px,2px)'},{transform:'translate(0,0)'}],{duration:400})}
+/* Kampf-Minispiel */
+const FX={raf:0};
+function startFight(cfg,done){
+  const el=$('#fight'),cv=$('#cv-fight'),c=cv.getContext('2d'),W=cv.width,H=cv.height;el.hidden=false;
+  const dm={leicht:1.3,normal:1,albtraum:.78}[G.diff]||1;
+  const life=({armbrust:2.3,axt:1.85,none:1.45}[cfg.weapon])*dm*(1+lvl('tuer')*.08);
+  const need=cfg.weapon==='none'?5:6;
+  const F={t:0,hit:0,lives:3,tg:[],spawn:.4,end:0,win:null,parts:[],flash:0,last:performance.now()};
+  $('#f-title').textContent=cfg.title;$('#f-sub').textContent=cfg.weapon==='armbrust'?'🏹 Mit der Armbrust':cfg.weapon==='axt'?'🪓 Mit der Axt':'🍳 Mit allem, was da ist';
+  const upd=()=>{$('#f-lives').textContent='❤️'.repeat(F.lives)+'🖤'.repeat(3-F.lives);$('#f-count').textContent=`${F.hit}/${need} 🎯`};upd();
+  const hitAt=(x,y)=>{if(F.win!==null)return;let best=-1,bd=1e9;F.tg.forEach((g,i)=>{const r=26+60*(g.age/life);const d=Math.hypot(g.x-x,g.y-y);if(d<r+14&&d<bd){bd=d;best=i}});
+    if(best<0){tone(200,.05,'square',.03);return}const g=F.tg.splice(best,1)[0];F.hit++;tone(cfg.weapon==='armbrust'?900:500,.08,'square',.07);
+    for(let i=0;i<14;i++)F.parts.push({x:g.x,y:g.y,vx:(Math.random()-.5)*400,vy:(Math.random()-.5)*400,l:.5});upd();if(F.hit>=need){F.win=true;F.end=1.1;sfx.good()}};
+  const onDown=e=>{const r=cv.getBoundingClientRect();hitAt((e.clientX-r.left)/r.width*W,(e.clientY-r.top)/r.height*H)};
+  const onKey=e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();if(F.tg.length){const g=F.tg.reduce((a,b)=>a.age>b.age?a:b);hitAt(g.x,g.y)}}};
+  cv.addEventListener('pointerdown',onDown);addEventListener('keydown',onKey);
+  const bg=G.scen==='eis'?['#1a2a44','#6f8fb5']:G.scen==='atom'?['#2a1210','#7a3a1c']:['#0a1614','#2a4a3a'];
+  const loop=now=>{const dt=Math.min(.05,(now-F.last)/1000);F.last=now;F.t+=dt;
+    if(F.win===null){F.spawn-=dt;if(F.spawn<=0&&F.tg.length<3){F.spawn=Math.max(.35,.85-F.t*.03);F.tg.push({x:80+Math.random()*(W-160),y:110+Math.random()*(H-190),age:0,wob:Math.random()*6})}
+      F.tg.forEach(g=>g.age+=dt);for(let i=F.tg.length-1;i>=0;i--){if(F.tg[i].age>=life){F.tg.splice(i,1);F.lives--;F.flash=.35;sfx.growl();upd();if(F.lives<=0){F.win=false;F.end=1.1;sfx.bad()}}}}
+    else{F.end-=dt;if(F.end<=0){cancelAnimationFrame(FX.raf);cv.removeEventListener('pointerdown',onDown);removeEventListener('keydown',onKey);el.hidden=true;done(F.win);return}}
+    const g=c.createLinearGradient(0,0,0,H);g.addColorStop(0,bg[0]);g.addColorStop(1,bg[1]);c.fillStyle=g;c.fillRect(0,0,W,H);
+    c.fillStyle='rgba(0,0,0,.35)';for(let i=0;i<8;i++)c.fillRect(i*110-20,H*.55-((i*37)%60),90,H);
+    c.fillStyle='#2a201a';c.fillRect(0,H-40,W,40);
+    if(G.scen==='eis'){c.fillStyle='rgba(255,255,255,.8)';for(let i=0;i<60;i++){c.beginPath();c.arc((i*97+F.t*60)%W,(i*53+F.t*90)%H,1.5,0,7);c.fill()}}
+    F.tg.forEach(t=>{const k=t.age/life,sz=40+80*k,sh=Math.sin(F.t*8+t.wob)*4*k;
+      c.strokeStyle=`rgba(224,82,58,${.4+k*.6})`;c.lineWidth=5;c.beginPath();c.arc(t.x,t.y,sz*.62,-Math.PI/2,-Math.PI/2+Math.PI*2*(1-k));c.stroke();
+      c.font=`${sz}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(cfg.foe,t.x+sh,t.y)});
+    F.parts=F.parts.filter(p=>(p.l-=dt)>0);F.parts.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;c.fillStyle=`rgba(255,${G.scen==='zombie'?120:200},80,${p.l*2})`;c.fillRect(p.x,p.y,5,5)});
+    if(F.flash>0){F.flash-=dt;c.fillStyle=`rgba(200,0,0,${F.flash})`;c.fillRect(0,0,W,H)}
+    if(F.win!==null){c.fillStyle='rgba(0,0,0,.55)';c.fillRect(0,0,W,H);c.font='72px "Bowlby One SC", Impact, sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillStyle=F.win?'#f2b632':'#e0523a';c.fillText(F.win?'GESCHAFFT!':'AUTSCH!',W/2,H/2)}
+    else if(F.t<1.1){c.font='60px "Bowlby One SC", Impact, sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillStyle=`rgba(242,182,50,${1.1-F.t})`;c.fillText('LOS!',W/2,H/2)}
+    FX.raf=requestAnimationFrame(loop)};
+  FX.raf=requestAnimationFrame(loop);sfx.growl();
+}
 function pickEvent(){
   const due=G.queue.filter(q=>q.day<=G.day).sort((a,b)=>a.day-b.day);
   for(const q of due){G.queue.splice(G.queue.indexOf(q),1);const e=EV[q.id];if(!e.cond||e.cond())return e}
   if(G.home==='wohnung'&&G.day>=2&&insideH().length&&chance(D().atk)){const a=ATTACKS.filter(e=>G.day>=(e.min||0)&&e.id!==G.last);if(a.length)return pick(a)}
-  if(!insideH().length||!chance(.78))return null;
+  if(!insideH().length||!chance(.95))return null;
   const pool=POOL.filter(e=>e.id!=='start'&&(e.scen==='both'||e.scen===G.scen)&&(!e.once||!G.used[e.id])&&G.day>=(e.min||0)&&(!e.cond||e.cond())&&G.last!==e.id);
   if(!pool.length)return null;const e=pick(pool);return e}
 function setEvent(e){G.ev=e;G.res=null;G.ctx=null;if(e){G.used[e.id]=1;G.last=e.id;G.evText=e.text();G.evTitle=typeof e.title==='function'?e.title():e.title}}
@@ -1056,7 +1115,7 @@ function endDay(){
   G.people.forEach(p=>{if(p.alive&&p.away>0){p.away--;if(p.away===0)L.push(...returnFrom(p));else if(!p.catTrip&&chance(.55)&&!G.queue.some(q=>EXPEV.includes(q.id))){G.expP=p.id;queue(pick(EXPEV),1)}}});
   G.day++;
   if(!aliveH().length){G.log=L;endGame(G.scen==='eis'&&G.people.some(p=>p.cause==='erfroren')?'erfroren':'stille');return}
-  if(G.day>40){G.log=L;const s=aliveH();endGame(chance(.08)?'traum':G.scen==='zombie'&&G.flags.fort+lvl('tuer')>=2&&s.length>1?'festung':s.length===1?'allein':'licht');return}
+  if(G.day>GOAL){G.log=L;const s=aliveH();endGame(chance(.08)?'traum':G.scen==='zombie'&&G.flags.fort+lvl('tuer')>=2&&s.length>1?'festung':s.length===1?'allein':'licht');return}
   if(L.length===0||chance(.4)){const p=rp();L.push(FLAVOR[R(0,FLAVOR.length-1)].replace('{p}',nm(p)))}
   G.log=[`Tag ${G.day}.`,...L];
   setEvent(pickEvent());renderBunker();window.scrollTo({top:0,behavior:'smooth'});
@@ -1106,14 +1165,14 @@ function statusChips(p){const c=[];
   if(p.mood<=2)c.push('<span class="chip bad">verzweifelt</span>');else if(p.mood<=4)c.push('<span class="chip warn">bedrückt</span>');
   if(!c.length)c.push('<span class="chip ok">okay</span>');return c.join('')}
 function renderBunker(){
-  $('#day-t').textContent=G.phase==='night'?`Nacht ${G.day}`:`Tag ${G.day}`;$('#day-s').textContent=`${{atom:'☢️ Atomkrieg',zombie:'🧟 Zombie-Apokalypse',eis:'❄️ Eiszeit'}[G.scen]} · ${DIFF[G.diff].n} · ${G.home==='wohnung'?'🏢 Wohnung':'🕳️ Bunker'} · ${aliveH().length} am Leben · überlebt bis Tag 40`;
+  $('#day-t').textContent=G.phase==='night'?`Nacht ${G.day}`:`Tag ${G.day}`;$('#day-s').textContent=`${{atom:'☢️ Atomkrieg',zombie:'🧟 Zombie-Apokalypse',eis:'❄️ Eiszeit'}[G.scen]} · ${DIFF[G.diff].n} · ${G.home==='wohnung'?'🏢 Wohnung':'🕳️ Bunker'} · ${aliveH().length} am Leben · überlebt bis Tag ${GOAL}`;
   $('#journal').innerHTML=`<h3>Tagebuch</h3>${G.log.map(l=>`<p>${l}</p>`).join('')}`;
   // Ereignis
   const box=$('#event-box');
   if(G.ev){const e=G.ev;const keys='ABCD';
     let h=`<div class="event"><div class="head"><div class="art">${e.art}</div><div><h3>Ereignis</h3><h2>${G.evTitle}</h2></div></div><p>${G.evText}</p>`;
     if(!G.res){if(OPT.viewer)h+=`<div class="vote-hint">🎥 Chat stimmt ab: Schreibt ${e.choices.map((_,i)=>keys[i]).join(', ')}!</div><div class="votebar"><i></i></div>`;
-      h+='<div class="choices">'+e.choices.map((ch,i)=>{const no=canUse(ch);return `<button class="choice" type="button" data-ch="${i}" ${no?'disabled':''}>${OPT.viewer?`<span class="k">${keys[i]}</span>`:''}<span>${ch.l}</span>${ch.need?`<span class="need">${ITEMS[ch.need].e} nötig</span>`:ch.use?`<span class="need">verbraucht ${ITEMS[ch.use].e}</span>`:''}</button>`}).join('')+'</div>'}
+      h+='<div class="choices">'+e.choices.map((ch,i)=>{const no=canUse(ch);return `<button class="choice" type="button" data-ch="${i}" ${no?'disabled':''}>${OPT.viewer?`<span class="k">${keys[i]}</span>`:''}<span>${ch.l}${(FIGHTS[e.id]||{})[i]?' ⚔️':''}</span>${ch.need?`<span class="need">${ITEMS[ch.need].e} nötig</span>`:ch.use?`<span class="need">verbraucht ${ITEMS[ch.use].e}</span>`:''}</button>`}).join('')+'</div>'}
     else h+=`<div class="result">${G.res.text}</div>${G.res.end?'<button class="btn" type="button" id="btn-toend">➜ Weiter</button>':''}`;
     h+='</div>';box.innerHTML=h;box.querySelectorAll('[data-ch]').forEach(b=>b.onclick=()=>choose(+b.dataset.ch));const te=$('#btn-toend');if(te)te.onclick=()=>endGame(G.res.end);
   }else box.innerHTML=`<div class="event"><div class="head"><div class="art">🕳️</div><div><h3>Ruhiger Tag</h3><h2>Nichts passiert</h2></div></div><p>Heute klopft niemand, nichts kracht. Zeit, sich um Rationen und Ausflüge zu kümmern.</p></div>`;
@@ -1188,7 +1247,7 @@ function bunkerLoop(){const cv=$('#cv-bunker'),c=cv.getContext('2d'),W=900,H=340
   const swing=Math.sin(t*.9)*.08,lx=450+Math.sin(swing)*60,ly=ry+60;c.strokeStyle='#111';c.lineWidth=2;c.beginPath();c.moveTo(450,G.home==='wohnung'?26:ry);c.lineTo(lx,ly);c.stroke();
   const flick=G.phase==='night'?.1:((G.flags.strom||Math.random()>.03)?1:.3);
   // Personen
-  const ins=G.people.filter(p=>p.alive&&!p.away);const n=ins.length;ins.forEach((p,i)=>{const x=n===1?390:190+i*(400/(n-1));drawPerson(c,x,ry+rh-22,1.25,p,t)});
+  const ins=G.people.filter(p=>p.alive&&!p.away);const n=ins.length;BUNK.pos={};ins.forEach((p,i)=>{const x=n===1?390:190+i*(400/(n-1));BUNK.pos[p.id]=x;drawPerson(c,x,ry+rh-22,1.25,p,t)});
   const away=G.people.filter(p=>p.alive&&p.away&&!p.cat);c.font='bold 13px Archivo Narrow, Arial';c.fillStyle='rgba(242,182,50,.9)';c.textAlign='left';if(away.length)c.fillText('🎒 unterwegs: '+away.map(p=>p.name).join(', '),150,ry+rh-6);
   // Licht
   c.fillStyle='#ffe9a8';c.beginPath();c.arc(lx,ly+4,7,0,7);c.fill();c.fillStyle='#222';c.fillRect(lx-7,ly-6,14,8);
@@ -1198,7 +1257,22 @@ function bunkerLoop(){const cv=$('#cv-bunker'),c=cv.getContext('2d'),W=900,H=340
     if(cold){c.fillStyle='rgba(190,225,255,.18)';c.fillRect(rx,ry,rw,rh)}}
   if(G.phase==='night'){if(has('lampe')){const a=Math.sin(t*.7)*.6;const bx=300+Math.sin(t*.4)*200;const fg=c.createRadialGradient(bx,ry+rh-30,5,bx,ry+rh-30,120);fg.addColorStop(0,'rgba(255,240,190,.35)');fg.addColorStop(1,'rgba(255,240,190,0)');c.fillStyle=fg;c.beginPath();c.arc(bx,ry+rh-30,120,0,7);c.fill()}
     c.font='bold 14px Archivo Narrow, Arial';c.fillStyle='rgba(180,200,255,.8)';c.textAlign='right';c.fillText('🌙 Nacht',W-50,ry+20);c.fillStyle='rgba(10,20,50,.35)';c.fillRect(0,0,W,H)}
+  drawBubble(c,t,ry+rh-22);
   BUNK.raf=requestAnimationFrame(bunkerLoop)}
+function sayLine(p){const L=[];
+  if(p.cat)return pick(['Miau.','Mrrrau?','*schnurr*','Miiiiau!']);if(p.dog)return pick(['Wuff!','Wuff wuff!','*hechel*']);
+  if(p.thirst>=2)L.push('Ich hab so Durst…','Nur ein Schluck Wasser, bitte!');if(p.hunger>=4)L.push('Mein Magen knurrt.','Gibt’s heute Suppe?');
+  if(p.cold>=1)L.push('Mir ist sooo kalt!','Ich spür meine Zehen nicht mehr.');if(p.sick)L.push('Mir ist übel…','*hust hust*');if(p.hurt)L.push('Aua, mein Arm…');
+  if(p.mood<=3)L.push('Ich will hier raus!','Wie lange noch?!');
+  if(G.phase==='night')L.push('Hast du das gehört?','Psst!','Ich kann nicht schlafen.');
+  if(p.kid)L.push('Mir ist langweilig!','Spielen wir was?','Ich vermisse mein Zimmer.','Sind die Monster weg?');
+  L.push('Was war das für ein Geräusch?','Wir schaffen das.','Ich zähl die Tage…',G.scen==='zombie'?'Hört ihr das Kratzen?':G.scen==='eis'?'Ist noch Holz da?':'Ob draußen noch jemand lebt?');
+  return pick(L)}
+function drawBubble(c,t,fy){if(!BUNK.say||t>BUNK.say.until){const ins=G.people.filter(p=>p.alive&&!p.away);if(ins.length&&(!BUNK.say||t>BUNK.say.until+2.5)){const p=pick(ins);BUNK.say={id:p.id,text:sayLine(p),until:t+3.2}}else return}
+  const x=BUNK.pos&&BUNK.pos[BUNK.say.id];if(x==null)return;const p=G.people.find(q=>q.id===BUNK.say.id);const top=fy-(p.cat||p.dog?52:p.kid?92:108);
+  c.font='bold 15px Archivo Narrow, Arial';const w=c.measureText(BUNK.say.text).width+20;const bx=Math.max(50,Math.min(850-w,x-w/2));
+  c.fillStyle='rgba(250,246,235,.95)';rrect(c,bx,top-30,w,26,10);c.fill();c.beginPath();c.moveTo(x-6,top-5);c.lineTo(x+6,top-5);c.lineTo(x,top+4);c.fill();
+  c.fillStyle='#2b261d';c.textAlign='left';c.textBaseline='middle';c.fillText(BUNK.say.text,bx+10,top-17);c.textBaseline='alphabetic'}
 function drawSurface(c,W,t){const night=G.phase==='night',eis=G.scen==='eis';
   if(!night&&!eis)return;
   const sky=c.createLinearGradient(0,0,0,44);
@@ -1279,7 +1353,7 @@ function endText(id,ctx){const s=G?aliveH():[];const names=s.map(p=>p.name).join
     case 'bande':return `Die Asche-Wölfe nehmen euch auf. ${names} lernen, wie man plündert, droht und überlebt. Satt seid ihr jetzt immer. Ob ihr noch die Familie von früher seid, fragt ihr euch nicht mehr.`;
     case 'heli':return `Der Hubschrauber trägt ${names} über eine Stadt voller wandelnder Schatten. Auf einem Flugzeugträger vor der Küste gibt es Strom, Ärzte und eine heiße Dusche. Ihr habt es geschafft.`;
     case 'heilmittel':return `Mit eurer Medizin stellt Dr. Varga die Testreihe fertig. Wochen später fallen Kisten mit Impfstoff vom Himmel. Die Zombies werden langsamer, dann still. ${names} gelten als die Familie, die die Welt gerettet hat.`;
-    case 'festung':return `Tag 40. ${G.home==='wohnung'?'Das ganze Wohnhaus':'Der Bunker'} ist eine Festung aus Stahl und Brettern. Andere Überlebende kommen dazu, ein Garten wächst auf dem Dach der Garage. ${names} haben nicht nur überlebt. Sie haben etwas aufgebaut.`;
+    case 'festung':return `Tag ${GOAL}. ${G.home==='wohnung'?'Das ganze Wohnhaus':'Der Bunker'} ist eine Festung aus Stahl und Brettern. Andere Überlebende kommen dazu, ein Garten wächst auf dem Dach der Garage. ${names} haben nicht nur überlebt. Sie haben etwas aufgebaut.`;
     case 'verwandelt':return 'In der Enge des Bunkers breitet sich die Infektion aus. Am nächsten Morgen kratzt es an der Luke. Diesmal von innen.';
     case 'eisbrecher':return `Die Polarstern II bringt ${names} flussabwärts in den Süden, wo das Eis schmilzt. An Deck gibt es heißen Tee und Decken, und zum ersten Mal seit ${d} Tagen ist euch wieder warm.`;
     case 'quelle':return `Hinter den weißen Hügeln dampft es. Heiße Quellen, ein Dorf aus Holzhütten, Gewächshäuser voller Tomaten. ${names||'Niemand'} badet im warmen Wasser, während ringsum der Schnee fällt.`;
@@ -1289,16 +1363,16 @@ function endText(id,ctx){const s=G?aliveH():[];const names=s.map(p=>p.name).join
     case 'aliens':return `Das Licht hebt euch sanft in die Luft. Im Raumschiff riecht es nach Zimt. Die Wesen haben die ganze Katastrophe von oben beobachtet und fanden euch „am interessantesten“. Jetzt leben ${names} auf einem Planeten mit drei Sonnen.`;
     case 'pizza':return `Pizzabote Giuseppe fährt ${names} auf seinem Roller in ein Bergdorf, in dem niemand etwas von der Katastrophe gemerkt hat. Es gibt Internet, Eis und Pizza. Ihr fragt nie, wie das möglich ist.`;
     case 'traum':return `Ein Wecker klingelt. Du sitzt im Bett, schweißgebadet. Draußen scheint die Sonne, der Nachbar mäht Rasen. Alles nur ein Traum… Aber warum ist im Garten eine gelbe Luke?`;
-    case 'licht':return `Tag 40. ${G.home==='wohnung'?'Ihr reißt die Bretter von den Fenstern':'Ihr öffnet die Luke'} und blinzelt ins Licht. ${G.scen==='eis'?'Die Sonne ist zurück. Das Eis taut, und aus dem Schnee ragen die ersten grünen Halme.':G.scen==='atom'?'Die Strahlung ist abgeklungen, die Welt ist grau, aber Gras wächst durch die Asche.':'Die Straßen sind leer, die Horde ist weitergezogen.'} ${names} haben überlebt.`;
-    case 'allein':return `Tag 40. ${names} steigt die Leiter hinauf. Allein. Die Welt da oben ist leer und still. Aber irgendwo, ganz weit weg, steigt Rauch von einem Lagerfeuer auf.`;
+    case 'licht':return `Tag ${GOAL}. ${G.home==='wohnung'?'Ihr reißt die Bretter von den Fenstern':'Ihr öffnet die Luke'} und blinzelt ins Licht. ${G.scen==='eis'?'Die Sonne ist zurück. Das Eis taut, und aus dem Schnee ragen die ersten grünen Halme.':G.scen==='atom'?'Die Strahlung ist abgeklungen, die Welt ist grau, aber Gras wächst durch die Asche.':'Die Straßen sind leer, die Horde ist weitergezogen.'} ${names} haben überlebt.`;
+    case 'allein':return `Tag ${GOAL}. ${names} steigt die Leiter hinauf. Allein. Die Welt da oben ist leer und still. Aber irgendwo, ganz weit weg, steigt Rauch von einem Lagerfeuer auf.`;
   }return ''}
 function endGame(id,ctx={}){
   cancelAnimationFrame(BUNK.raf);stopRun();const seen=store.get('b45-ends',{});const isNew=!seen[id];seen[id]=1;store.set('b45-ends',seen);
   const E=ENDINGS[id];ENDV.id=id;ENDV.scen=G?G.scen:ctx.scen;ENDV.people=G?aliveH():[];
   $('#end-tag').textContent=isNew?'Neues Ende entdeckt':'Ende';$('#end-title').textContent=`${E.e} ${E.t}`;
   const good=['konvoi','zone','tunnel','heli','heilmittel','festung','licht','eisbrecher','quelle','nomaden','aliens','pizza','katerkoenig'].includes(id);good?sfx.good():sfx.bad();
-  if(G){const s=aliveH();if(G.day>40&&s.length===humans().length)ach('nodeath');if(id==='stille'&&G.people.some(p=>p.id==='moritz'&&p.alive))ach('catonly');if(good&&G.diff==='albtraum')ach('albtraum');
-    if(G.home==='wohnung'&&G.day>40)ach('wohnung40');if(good&&G.scen==='eis')ach('eiskalt');if(good&&G.day<12)ach('speed')}
+  if(G){const s=aliveH();if(G.day>GOAL&&s.length===humans().length)ach('nodeath');if(id==='stille'&&G.people.some(p=>p.id==='moritz'&&p.alive))ach('catonly');if(good&&G.diff==='albtraum')ach('albtraum');
+    if(G.home==='wohnung'&&G.day>GOAL)ach('wohnung40');if(good&&G.scen==='eis')ach('eiskalt');if(good&&G.day<12)ach('speed')}
   if(E.secret)ach('geheim');if(Object.keys(seen).length>=8)ach('sammler');document.body.classList.remove('night');
   const earned=id==='zuspaet'?3:(G?G.day*2+(G.inv.schrott||0):0)+(good?15:0);META.scrap+=earned;saveMeta();
   $('#end-text').innerHTML=`<p>${endText(id,ctx)}</p>${G&&G.dead.length?`<p>In Erinnerung an: ${G.dead.join(', ')}.</p>`:''}`;
