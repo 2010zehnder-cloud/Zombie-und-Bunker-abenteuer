@@ -141,6 +141,16 @@ canvas{display:block;max-width:100%}
 .exp .opts2{display:flex;flex-wrap:wrap;gap:6px}
 .exp input{accent-color:var(--amber)}
 .endday{display:flex;justify-content:flex-end}
+.packbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.packgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.pk{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px}
+.pk.on{border-color:var(--amber);background:#2b2715}
+.pk .e{font-size:30px;text-align:center}
+.pk b{display:block}
+.pk span{font-size:13px;color:var(--mute)}
+.pk .ctl{display:flex;gap:4px;align-items:center}
+.pk .ctl button{width:36px;height:36px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);font-size:18px}
+.pk .ctl output{min-width:2ch;text-align:center;font-weight:700;font-variant-numeric:tabular-nums}
 /* Ende */
 .endtitle{display:flex;flex-direction:column;gap:6px}
 .endtitle .tag{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--amber);font-weight:700}
@@ -187,10 +197,19 @@ canvas{display:block;max-width:100%}
     <div class="endgrid" id="end-list"></div>
   </section>
 
+  <!-- PACKEN (einfacher Modus) -->
+  <section class="screen" id="scr-pack" hidden>
+    <h2>Pack für den Bunker</h2>
+    <p class="lead">Die ganze Familie ist schon unten im Bunker. Du hast keinen Zeitdruck. Such dir aus, was mit runterkommt. Jedes Teil braucht 1 Platz.</p>
+    <div class="packbar"><div><span class="timer" id="pack-left">12</span> <span class="small">Plätze frei</span></div><button class="btn ghost" type="button" id="btn-pack-rand">🎲 Zufällig packen</button></div>
+    <div class="packgrid" id="pack-list"></div>
+    <div class="row"><button class="btn" type="button" id="btn-pack-go">⬇ In den Bunker</button><button class="btn ghost" type="button" id="btn-pack-run">🏃 Lieber selbst durchs Haus rennen (Action)</button></div>
+  </section>
+
   <!-- LÄUFER WÄHLEN -->
   <section class="screen" id="scr-pick" hidden>
     <h2>Wer rennt durchs Haus?</h2>
-    <p class="lead">Die anderen sind irgendwo im Haus verteilt. Hol sie ab: Erwachsene und Kinder brauchen 2 Plätze, Kater Moritz 1. Gegenstände brauchen 1 Platz. Du kannst 4 Plätze tragen und musst sie an der Luke im Garten abliefern.</p>
+    <p class="lead">Die anderen sind irgendwo im Haus verteilt. Hol sie ab. Jede Person, der Kater und jeder Gegenstand braucht 1 Platz. Du kannst 4 Plätze tragen und lädst sie an der Luke im Garten ab.</p>
     <div class="pickgrid" id="pick-list"></div>
   </section>
 
@@ -443,9 +462,26 @@ function renderEndList(){const seen=store.get('b45-ends',{});const keys=Object.k
   $('#end-list').innerHTML=keys.map(k=>seen[k]?`<div class="endchip"><span class="e">${ENDINGS[k].e}</span>${ENDINGS[k].t}</div>`:`<div class="endchip lock"><span class="e">🔒</span>???</div>`).join('')}
 let OPT={viewer:store.get('b45-viewer',false)};
 $('#opt-viewer').checked=OPT.viewer;$('#opt-viewer').onchange=e=>{OPT.viewer=e.target.checked;store.set('b45-viewer',OPT.viewer)};
-document.querySelectorAll('.scen').forEach(b=>{b.onmouseenter=()=>TITLE.scen=b.dataset.scen;b.onfocus=()=>TITLE.scen=b.dataset.scen;b.onclick=()=>{ac();sfx.click();startPick(b.dataset.scen)}});
+document.querySelectorAll('.scen').forEach(b=>{b.onmouseenter=()=>TITLE.scen=b.dataset.scen;b.onfocus=()=>TITLE.scen=b.dataset.scen;b.onclick=()=>{ac();sfx.click();startPack(b.dataset.scen)}});
 $('#btn-menu').onclick=()=>toMenu();
 function toMenu(){stopRun();cancelAnimationFrame(BUNK.raf);cancelAnimationFrame(ENDV.raf);renderEndList();show('scr-menu');cancelAnimationFrame(TITLE.raf);drawTitle()}
+
+/* ================= Packen (einfach) ================= */
+const PACKMAX=12;
+const PACKINFO={suppe:'Essen für 1 Person, 1 Tag',wasser:'Trinken für 1 Person, 1 Tag',medi:'Heilt Krankheit und Wunden',werkzeug:'Repariert Rohre, Strom, Luke',radio:'Vielleicht hört euch jemand',maske:'Schutz vor Strahlung und Gift',axt:'Waffe und Werkzeug',armbrust:'Leise Fernwaffe',lampe:'Licht und Signale',karte:'Findet Orte draußen',karten:'Gegen Langeweile',spray:'Gegen Krabbeltiere',buch:'Tipps fürs Überleben'};
+let PACK={};
+function packUsed(){return Object.values(PACK).reduce((a,b)=>a+b,0)}
+function startPack(scen){SCEN=scen;cancelAnimationFrame(TITLE.raf);PACK={suppe:3,wasser:3};show('scr-pack');renderPack()}
+function renderPack(){const left=PACKMAX-packUsed();$('#pack-left').textContent=left;
+  $('#pack-list').innerHTML=Object.keys(ITEMS).map(k=>{const n=PACK[k]||0,max=SPAWN[k];
+    return `<div class="pk ${n?'on':''}"><div class="e">${ITEMS[k].e}</div><div><b>${ITEMS[k].n}</b><span>${PACKINFO[k]}</span></div><div class="ctl">${max>1?`<button type="button" data-m="${k}" aria-label="${ITEMS[k].n} weniger" ${n?'':'disabled'}>−</button><output>${n}</output><button type="button" data-p="${k}" aria-label="${ITEMS[k].n} mehr" ${n<max&&left>0?'':'disabled'}>+</button>`:`<button type="button" data-t="${k}" aria-label="${ITEMS[k].n} ein- oder auspacken" ${n||left>0?'':'disabled'}>${n?'✓':'+'}</button>`}</div></div>`}).join('');
+  document.querySelectorAll('#pack-list [data-p]').forEach(b=>b.onclick=()=>{PACK[b.dataset.p]=(PACK[b.dataset.p]||0)+1;sfx.pick();renderPack()});
+  document.querySelectorAll('#pack-list [data-m]').forEach(b=>b.onclick=()=>{PACK[b.dataset.m]--;sfx.click();renderPack()});
+  document.querySelectorAll('#pack-list [data-t]').forEach(b=>b.onclick=()=>{const k=b.dataset.t;PACK[k]=PACK[k]?0:1;sfx.pick();renderPack()})}
+$('#btn-pack-rand').onclick=()=>{PACK={suppe:R(2,5),wasser:R(2,5)};const others=shuffle(Object.keys(ITEMS).filter(k=>SPAWN[k]===1));while(packUsed()<PACKMAX&&others.length)PACK[others.pop()]=1;sfx.good();renderPack()};
+$('#btn-pack-run').onclick=()=>{sfx.click();startPick(SCEN)};
+$('#btn-pack-go').onclick=()=>{ac();sfx.drop();G=null;const stash={};Object.entries(PACK).forEach(([k,n])=>{if(n)stash[k]=n});
+  startBunker({scen:SCEN,runner:FAMILY[0],saved:FAMILY.slice(1),stash},[])};
 
 /* ================= Läufer wählen ================= */
 let SCEN='atom';
@@ -477,10 +513,10 @@ function startRun(runnerId){
   RUN.cd=cd;RUN.raf=requestAnimationFrame(runLoop);
 }
 function stopRun(){if(RUN){cancelAnimationFrame(RUN.raf);clearInterval(RUN.cd);RUN.active=false}sirenStop()}
-const usedSlots=()=>RUN.carry.length+RUN.fam.filter(m=>m.follow).reduce((a,m)=>a+(m.f.cat?1:2),0);
+const usedSlots=()=>RUN.carry.length+RUN.fam.filter(m=>m.follow).length;
 function updSlots(){const box=$('#slots');let h='';const fol=RUN.fam.filter(m=>m.follow);
   RUN.carry.forEach(k=>h+=`<div class="slot full">${ITEMS[k].e}</div>`);
-  fol.forEach(m=>{const ic=m.f.cat?'🐈':(m.f.kid?'🧒':'🧑');h+=`<div class="slot full person">${ic}</div>`;if(!m.f.cat)h+=`<div class="slot full person">·</div>`});
+  fol.forEach(m=>{const ic=m.f.cat?'🐈':(m.f.kid?'🧒':'🧑');h+=`<div class="slot full person">${ic}</div>`});
   for(let i=usedSlots();i<4;i++)h+='<div class="slot"></div>';box.innerHTML=h}
 function toast(msg){const el=$('#toast');el.textContent=msg;el.hidden=false;RUN.toast=1.6}
 addEventListener('keydown',e=>{if(!RUN)return;const k=e.key.toLowerCase();if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)&&!$('#scr-run').hidden)e.preventDefault();RUN.keys[k]=true;if(k===' '&&RUN.onHatch&&RUN.active)dive()});
@@ -512,7 +548,7 @@ function updateRun(dt){
   if(P.moving){RUN.trail.unshift({x:P.x,y:P.y});if(RUN.trail.length>200)RUN.trail.pop()}
   // Aufsammeln
   for(let i=RUN.items.length-1;i>=0;i--){const it=RUN.items[i];if(Math.hypot(it.x-P.x,it.y-P.y)<20){if(usedSlots()<4){RUN.carry.push(it.k);RUN.items.splice(i,1);sfx.pick();updSlots();toast(`${ITEMS[it.k].e} ${ITEMS[it.k].n} eingepackt`)}else if(RUN.toast<=0)toast('Hände voll! Erst zur Luke bringen.')}}
-  RUN.fam.forEach(m=>{if(!m.home||m.follow)return;if(Math.hypot(m.x-P.x,m.y-P.y)<22){const cost=m.f.cat?1:2;if(usedSlots()+cost<=4){m.follow=true;sfx.good();updSlots();toast(`${m.f.name} kommt mit!`)}else if(RUN.toast<=0)toast(`Kein Platz für ${m.f.name} – erst abliefern.`)}});
+  RUN.fam.forEach(m=>{if(!m.home||m.follow)return;if(Math.hypot(m.x-P.x,m.y-P.y)<22){const cost=1;if(usedSlots()+cost<=4){m.follow=true;sfx.good();updSlots();toast(`${m.f.name} kommt mit!`)}else if(RUN.toast<=0)toast(`Kein Platz für ${m.f.name} – erst abliefern.`)}});
   // Folgen
   let idx=0;RUN.fam.forEach(m=>{if(!m.follow)return;idx++;const tp=RUN.trail[Math.min(RUN.trail.length-1,idx*14)];if(tp){m.x+=(tp.x-m.x)*Math.min(1,dt*10);m.y+=(tp.y-m.y)*Math.min(1,dt*10)}});
   // Luke
@@ -927,7 +963,7 @@ function endLoop(){const cv=$('#cv-end'),c=cv.getContext('2d'),W=cv.width,H=cv.h
   if(id==='festung'){c.fillStyle='#4a3a2a';c.fillRect(W*.58,H*.42,260,H*.38);for(let i=0;i<7;i++)c.fillRect(W*.58+i*40,H*.36,24,20);c.fillStyle='#f2b632';c.fillRect(W*.58+120,H*.2,4,60);c.beginPath();c.moveTo(W*.58+124,H*.2);c.lineTo(W*.58+164+Math.sin(t*3)*6,H*.24);c.lineTo(W*.58+124,H*.28);c.fill()}
   if(id==='heilmittel'){for(let i=0;i<6;i++){const x=(i*160+80)%W,y=((t*40+i*90)%(H*.7));c.fillStyle='#fff';c.beginPath();c.arc(x,y-20,26,Math.PI,0);c.fill();c.strokeStyle='#fff';c.beginPath();c.moveTo(x-26,y-20);c.lineTo(x,y);c.lineTo(x+26,y-20);c.stroke();c.fillStyle='#c44';c.fillRect(x-8,y,16,14)}}
   ENDV.raf=requestAnimationFrame(endLoop)}
-$('#btn-again').onclick=()=>{cancelAnimationFrame(ENDV.raf);startPick(ENDV.scen||'atom')};
+$('#btn-again').onclick=()=>{cancelAnimationFrame(ENDV.raf);startPack(ENDV.scen||'atom')};
 $('#btn-tomenu').onclick=()=>{cancelAnimationFrame(ENDV.raf);toMenu()};
 
 /* ================= Start ================= */

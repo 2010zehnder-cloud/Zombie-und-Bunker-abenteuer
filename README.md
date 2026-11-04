@@ -5,8 +5,8 @@ Ein Überlebensspiel im Browser: **Atomkrieg** oder **Zombie-Apokalypse**.
 ## So wird gespielt
 
 1. **Katastrophe wählen**: Atomkrieg oder Zombies.
-2. **Läufer wählen**: Jens, Sabine, Mia oder Leo rennt durchs Haus.
-3. **45 Sekunden Panik**: Sammle Familie, Kater Moritz, Suppe, Wasser und Ausrüstung ein und bring alles zur gelben Luke im Garten. Du kannst 4 Plätze tragen (Personen brauchen 2, der Kater 1, Gegenstände 1). Bei den Zombies bricht nach ein paar Sekunden einer ins Haus ein.
+2. **Packen**: Die ganze Familie ist automatisch im Bunker. Du suchst in Ruhe 12 Dinge aus (Suppe, Wasser, Axt, Radio …) oder lässt per 🎲 zufällig packen.
+3. **Optional, Action-Modus**: Wer will, rennt stattdessen selbst 45 Sekunden durchs Haus und sammelt Familie und Vorräte ein (4 Plätze, alles braucht 1 Platz). Bei den Zombies bricht nach ein paar Sekunden einer ins Haus ein.
 4. **Im Bunker**: Jeden Tag gibt es ein Ereignis mit Entscheidungen, du verteilst Suppe 🥫 und Wasser 💧, behandelst Kranke 💊 und schickst Leute auf Ausflüge nach draußen.
 5. **Überlebe bis Tag 40** oder finde einen anderen Ausweg.
 
