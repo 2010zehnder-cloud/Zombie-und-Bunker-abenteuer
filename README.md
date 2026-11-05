@@ -10,6 +10,17 @@ Ein Überlebensspiel im Browser: **Atomkrieg**, **Eiszeit** oder **Zombie-Apokal
 4. **Im Bunker**: Jeden Tag gibt es ein Ereignis mit Entscheidungen, du verteilst Suppe 🥫 und Wasser 💧, behandelst Kranke 💊 und schickst Leute auf Ausflüge nach draußen.
 5. **Überlebe bis Tag 30** oder finde einen anderen Ausweg.
 
+## 🌍 Jede Katastrophe spielt sich anders
+
+| | ☢️ Atomkrieg | 🧟 Zombies | ❄️ Eiszeit |
+|---|---|---|---|
+| Eigenes System | Strahlung im Bunker (ab 40 wird man krank), heißer Fallout in der ersten Woche | Lärm (ab 70 kommt eine Belagerung), Fallen bauen | Außentemperatur (unter −50 °C doppelter Holzverbrauch) |
+| Eigene Aktionen | Dekontaminieren, Ritzen abdichten | Totenstille halten, Falle bauen | Schnee schmelzen, Holz hacken, Eisfischen |
+| Gegner im Kampf | Plünderer, Mutanten, Riesenschaben, Brandbomben (nicht antippen!) | Schlurfer, Läufer, Brocken, Schreier (ruft Verstärkung) | Wölfe, Riesenadler, Eisbären, Schneesturm verdeckt die Sicht |
+| Eigene Ereignisse | Mutation, Klopfzeichen der Nachbarn, EMP, Flugblätter, verletzter Soldat, verseuchtes Wasser, Sirenen | Autoalarm, umgekippter Laster, Walkie-Talkie-Rettung, Zombie-Nachbar Herr Meier, Gitarre, Biker-Bande, Belagerung | Wolfsrudel, Lawine, alter Fischer, Schneemann, leere Hütte, Sonne, Rentiere |
+
+Ereignisse wiederholen sich frühestens nach 7 Tagen, und Ereignisse der eigenen Katastrophe kommen öfter.
+
 ## ⚔️ Kämpfe als Minispiel
 
 Bei Kämpfen (mit ⚔️ markiert) startet ein kurzes Action-Spiel: Zombies, Plünderer, Eisbären oder Ratten tauchen auf und werden größer. Tippe sie an, bevor sie dich erreichen. Mit der Armbrust hast du mehr Zeit, mit der Bratpfanne weniger. Wer gewinnt, bleibt heil und findet manchmal Beute.

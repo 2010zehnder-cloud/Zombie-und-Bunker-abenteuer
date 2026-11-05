@@ -149,6 +149,12 @@ canvas{display:block;max-width:100%}
 @media (max-width:520px){.diffrow{grid-template-columns:minmax(0,1fr)}}
 .endchip.ach{flex-direction:row}
 .endchip small{display:block;color:var(--mute);font-size:12px}
+.spec .meter{height:14px;border-radius:7px;background:#2a3133;overflow:hidden;border:1px solid var(--line)}
+.spec .meter i{display:block;height:100%;border-radius:7px;transition:width .4s}
+.spec .mrow{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.spec .mrow b{font-family:var(--display);font-weight:400;font-size:24px;font-variant-numeric:tabular-nums}
+.spec .acts{display:flex;flex-wrap:wrap;gap:6px}
+.spec .acts .btn{padding:8px 12px;font-size:14px}
 .fight{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.82);display:grid;place-items:center;padding:16px max(16px, env(safe-area-inset-right, 0px)) 16px max(16px, env(safe-area-inset-left, 0px))}
 .fbox{width:min(900px,100%);display:flex;flex-direction:column;gap:8px}
 .fhead{display:flex;justify-content:space-between;align-items:flex-end;gap:10px}
@@ -281,6 +287,7 @@ body.night .event::before{background:repeating-linear-gradient(-45deg,#6a7fb0 0 
         <div id="event-box"></div>
       </div>
       <div class="col">
+        <div class="panel spec" id="spec-box"></div>
         <div class="panel"><h3>Bewohner &amp; Rationen</h3><div class="crew" id="crew"></div><div class="small">🥫 = heute Suppe, 💧 = heute Wasser. Wer lange nichts bekommt, wird schwach und stirbt.</div></div>
         <div class="panel exp" id="exp-box"></div>
         <div class="panel" id="burn-box" hidden></div>
@@ -366,7 +373,7 @@ let META=store.get('b45-meta',{scrap:20,lv:{}});if(!META.lv)META.lv={};
 const saveMeta=()=>store.set('b45-meta',META);
 const lvl=k=>G&&G.up?(G.up[k]||0):(META.lv[k]||0);
 const upDesc=(k,l)=>UPG[k].d.replace(/\{([^}]*)\}/g,(_,a)=>a.split('|')[Math.max(0,Math.min(2,l-1))]);
-const strong=()=>G&&G.people.some(p=>p.id==='jens'&&p.alive&&!p.away&&p.hurt<2);
+const strong=()=>G&&G.people.some(p=>(p.id==='jens'||p.id==='kai')&&p.alive&&!p.away&&p.hurt<2);
 const risk=b=>{if(G&&typeof G.fightWin==='boolean'){G.riskUsed=true;return !G.fightWin}return chance(Math.max(.05,b-lvl('tuer')*.12+D().risk-(strong()?.1:0)))};
 let HOME='bunker';
 const GOAL=30;
@@ -382,7 +389,7 @@ const TRAITS={jens:['💪 Stark','weniger Verletzungen bei Kämpfen','🍖 Vielf
   mia:['🔎 Spürnase','findet auf Ausflügen mehr','🙄 Teenager','Stimmung sinkt schneller'],
   leo:['🐭 Flink','kommt von Ausflügen sicherer zurück','🥤 Klein','verdurstet schneller'],
   moritz:['🐁 Mäusejäger','braucht kein Futter, hebt die Stimmung'],petrova:['🧶 Strickt','hebt alle 4 Tage die Stimmung'],
-  tina:['🏃 Läuferin','findet auf Ausflügen mehr'],emil:['🍀 Glückskind','Ausflüge sind sicherer, solange er da ist'],zwei:['🐕 Wachhund','hebt die Stimmung']};
+  tina:['🏃 Läuferin','findet auf Ausflügen mehr'],kai:['🎖️ Kämpfer','weniger Verletzungen bei Kämpfen'],emil:['🍀 Glückskind','Ausflüge sind sicherer, solange er da ist'],zwei:['🐕 Wachhund','hebt die Stimmung']};
 const traitLine=id=>{const t=TRAITS[id];if(!t)return '';return `<span title="${t[1]}">${t[0]}</span>`+(t[2]?` · <span title="${t[3]}">${t[2]}</span>`:'')};
 /* Erfolge */
 const ACH={nodeath:['🏅','Alle durchgebracht','Bis zum Ende ohne einen einzigen Toten'],catonly:['🐈','Nur der Kater','Moritz überlebt als Letzter'],
@@ -405,6 +412,7 @@ const EXTRA={
   petrova:{id:'petrova',name:'Frau Petrova',role:'Nachbarin',shirt:'#7d6f3a',skin:'#d9a982',hair:'#a9a9a9',long:1},
   tina:{id:'tina',name:'Tina',role:'Fremde',shirt:'#3c8a8a',skin:'#e2b38e',hair:'#1f1f1f',long:1},
   zwei:{id:'zwei',name:'Zwei',role:'Hund',dog:1,fur:'#8a6a4a'},
+  kai:{id:'kai',name:'Kai',role:'Soldat',shirt:'#5a6a3a',skin:'#d9a982',hair:'#2a2a2a'},
   emil:{id:'emil',name:'Emil',role:'Findelkind, 7',shirt:'#c9a03a',skin:'#f0c8a8',hair:'#8a5a2a',kid:1}
 };
 
@@ -736,12 +744,13 @@ function mkPerson(f){return {...f,seed:Math.random()*6,alive:true,away:0,gear:[]
 function startBunker(run,lost){
   const inv={};Object.keys(ITEMS).forEach(k=>inv[k]=run.stash[k]||0);
   const people=[mkPerson(run.runner),...run.saved.map(mkPerson)];
-  G={scen:run.scen,diff:OPTDIFF(),phase:'day',home:run.home||'bunker',up:{...META.lv},day:1,people,inv,flags:{fort:0},used:{},queue:[],log:[],ev:null,res:null,ration:{},dead:[],lostAtStart:lost.map(f=>f.name),stats:{exps:0,events:0}};
+  G={usedDay:{},scen:run.scen,diff:OPTDIFF(),phase:'day',home:run.home||'bunker',up:{...META.lv},day:1,people,inv,flags:{fort:0},used:{},queue:[],log:[],ev:null,res:null,ration:{},dead:[],lostAtStart:lost.map(f=>f.name),stats:{exps:0,events:0}};
   const inside=people.map(p=>p.name).join(', ');
   if(G.home==='wohnung'){add('suppe',3);add('wasser',3);add('schrott',2)}
   G.log.push(G.home==='wohnung'?`Tag 1. Tür zu, Schrank davor. In der Wohnung: ${inside}.`:`Tag 1. Wir sind drin: ${inside}.`);
   if(lost.length)G.log.push(`${lost.filter(f=>!f.cat).map(f=>f.name).join(' und ')||''}${lost.some(f=>f.cat)?(lost.filter(f=>!f.cat).length?' und Kater Moritz':'Kater Moritz'):''} ${lost.length>1?'haben':'hat'} es nicht in den Bunker geschafft. Niemand sagt ein Wort.`);
   const food=inv.suppe,water=inv.wasser;G.log.push(`Vorräte: ${food} Dosen Suppe und ${water} Flaschen Wasser.${food+water<5?' Das wird verdammt knapp.':''}`);
+  specInit();BUNK.say=null;
   setEvent(EV.start);show('scr-bunker');renderBunker();cancelAnimationFrame(BUNK.raf);BUNK.raf=requestAnimationFrame(bunkerLoop);
 }
 const humans=()=>G.people.filter(p=>!p.cat&&!p.dog);
@@ -927,6 +936,126 @@ atk('a_decke',{art:'🔨',title:'Von oben',text:()=>'Frau Huber aus dem 4. Stock
     {l:'Decke mit Werkzeug abstützen',need:'werkzeug',fn:()=>{add('schrott');return 'Balken aus dem Keller, gut verschraubt. Und ein paar Teile bleiben übrig: +1 ⚙️.'}},
     {l:'Ins Kinderzimmer umziehen',fn:()=>{mood(-1);return 'Alle schlafen eng zusammen. Das Trampeln hört nicht auf.'}}]});
 
+/* ===== Spezial-Systeme je Katastrophe ===== */
+function specInit(){G.actDay={};if(G.scen==='atom')G.rad=20;if(G.scen==='zombie'){G.noise=15;G.traps=0;G.siegeDay=-99}if(G.scen==='eis')G.temp=-32}
+const won=()=>{G.riskUsed=true;return G.fightWin===true};
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function specNight(L){
+  if(G.scen==='atom'){const gain=R(0,3)+(G.day<=6?3:0)-lvl('filter')-(G.flags.sealed||0);G.rad=clamp(G.rad+gain,0,100);
+    if(G.rad>=40&&chance((G.rad-30)/110)){const p=rp(x=>!x.sick);if(p){p.sick=1;L.push(`☢️ Die Strahlung im Bunker ist hoch. ${p.name} wird krank.`)}}
+    if(G.rad>=80)L.push('☢️ Der Geigerzähler rattert ununterbrochen. Dekontaminieren, sofort!');
+    if(G.day===7)L.push('☢️ Der heiße Fallout ist vorbei. Draußen ist es jetzt etwas sicherer.')}
+  if(G.scen==='zombie'){G.noise=clamp(G.noise-10,0,100);if(G.noise>=70&&G.day-G.siegeDay>=5){G.siegeDay=G.day;queue('z_belagerung',1);L.push('🔊 Es war zu laut. Draußen sammeln sich Zombies. Viele Zombies.')}}
+  if(G.scen==='eis'){G.temp=clamp(G.temp+R(-9,8),-62,-16);if(G.temp>-25){insideH().forEach(p=>p.cold=Math.max(0,p.cold-1));L.push(`🌡️ Milde Nacht, nur ${G.temp} °C. Allen ist ein bisschen wärmer.`)}else if(G.temp<-50)L.push(`🌡️ ${G.temp} °C! Heute Nacht braucht der Ofen doppelt so viel Holz.`)}
+}
+function act(key){if(G.actDay[key]===G.day)return;const done=t=>{G.actDay[key]=G.day;G.log.push(t);sfx.good();renderBunker()};
+  if(key==='dekon'){if(!has('wasser'))return;take('wasser');G.rad=clamp(G.rad-18,0,100);done('🚿 Alles abgewischt und abgespült. Die Strahlung sinkt deutlich.')}
+  if(key==='seal'){if(!has('werkzeug')||G.inv.schrott<1)return;take('schrott');G.flags.sealed=(G.flags.sealed||0)+1;G.rad=clamp(G.rad-8,0,100);done('🔩 Ritzen mit Blech abgedichtet. Ab jetzt dringt weniger Staub herein.')}
+  if(key==='still'){G.noise=clamp(G.noise-22,0,100);mood(-1);done('🔇 Ein ganzer Tag Totenstille. Kein Wort, kein Schritt. Anstrengend, aber es wirkt.')}
+  if(key==='trap'){if(G.inv.schrott<2||G.traps>=3)return;take('schrott',2);G.traps++;done(`🪤 Eine Falle aus Schrott und Draht gebaut. Beim nächsten Kampf erwischt sie Zombies. (Fallen: ${G.traps})`)}
+  if(key==='melt'){if(!has('holz'))return;take('holz');add('wasser',2);done('❄️ Ein Topf Schnee über dem Feuer geschmolzen: +2 💧.')}
+  if(key==='chop'){if(!has('axt'))return;add('holz',2);const p=rp();if(p)p.cold++;done(`🪓 ${nm(p)} hackt draußen den alten Gartenzaun klein: +2 🪵. Brrr.`)}
+  if(key==='fish'){const p=rp(x=>x.sick<2&&x.hurt<2&&x.cold<3);if(!p)return;p.away=1;p.gear=[];p.fishing=1;done(`🎣 ${p.name} geht zum zugefrorenen Teich, um Löcher ins Eis zu bohren. Morgen zurück.`)}
+}
+function renderSpec(){const box=$('#spec-box');const btn=(k,label,ok,why)=>`<button class="btn ghost" type="button" data-act="${k}" ${ok&&G.actDay[k]!==G.day?'':'disabled'} title="${why||''}">${label}${G.actDay[k]===G.day?' ✓':''}</button>`;
+  let h='';
+  if(G.scen==='atom'){const r=G.rad,col=r<40?'var(--rad)':r<70?'var(--amber)':'var(--blood)';
+    h=`<div class="mrow"><h3>☢️ Strahlung im Bunker</h3><b>${r}</b></div><div class="meter"><i style="width:${r}%;background:${col}"></i></div>
+    <p class="small">${G.day<=6?`🔥 Heißer Fallout noch ${7-G.day} ${7-G.day===1?'Tag':'Tage'}: Ausflüge sind besonders gefährlich und jedes Öffnen der Luke lässt Staub rein.`:'Der Fallout klingt ab.'} Ab 40 wird man krank.</p>
+    <div class="acts">${btn('dekon','🚿 Dekontaminieren (−1 💧)',has('wasser'))}${btn('seal','🔩 Ritzen abdichten (🧰 + 1 ⚙️)',has('werkzeug')&&G.inv.schrott>=1)}</div>`}
+  if(G.scen==='zombie'){const r=G.noise,col=r<40?'var(--rad)':r<70?'var(--amber)':'var(--blood)';
+    h=`<div class="mrow"><h3>🔊 Lärm</h3><b>${r}</b></div><div class="meter"><i style="width:${r}%;background:${col}"></i></div>
+    <p class="small">Kämpfe, Musik und Geschrei locken Zombies an. Ab 70 kommt eine Belagerung. 🪤 Fallen: ${G.traps} (jede erledigt 2 Gegner im nächsten Kampf).</p>
+    <div class="acts">${btn('still','🔇 Totenstille halten',true)}${btn('trap','🪤 Falle bauen (2 ⚙️)',G.inv.schrott>=2&&G.traps<3)}</div>`}
+  if(G.scen==='eis'){const r=clamp(Math.round((G.temp+62)/46*100),0,100);
+    h=`<div class="mrow"><h3>🌡️ Außentemperatur</h3><b>${G.temp} °C</b></div><div class="meter"><i style="width:${r}%;background:linear-gradient(90deg,#4a7ac0,#9ad0f0,#f2b632)"></i></div>
+    <p class="small">Unter −50 °C braucht der Ofen 2 Holz pro Nacht. Über −25 °C wärmt die Nacht von allein.</p>
+    <div class="acts">${btn('melt','❄️ Schnee schmelzen (1 🪵 → 2 💧)',has('holz'))}${btn('chop','🪓 Holz hacken (+2 🪵)',has('axt'),'braucht eine Axt')}${btn('fish','🎣 Eisfischen (1 Tag)',!!rp(x=>x.sick<2&&x.hurt<2&&x.cold<3))}</div>`}
+  box.innerHTML=h;box.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>act(b.dataset.act))}
+
+/* --- Atom: neue Ereignisse --- */
+ev('a_mutation',{scen:'atom',once:1,min:6,art:'🧬',title:'Etwas ist anders',cond:()=>G.rad>=30&&insideH().some(p=>!p.mut),text:()=>{G.ctx=rp(p=>!p.mut);return `${nm(G.ctx)} sieht im Dunkeln plötzlich alles. Die Pupillen sind riesig und schimmern grünlich. Eine Mutation!`},
+  choices:[{l:'Das ist doch praktisch!',fn:()=>{G.ctx.mut=1;mood(+1,G.ctx);return `${nm(G.ctx)} hat jetzt 👁️ Nachtsicht: findet auf Ausflügen mehr und ist draußen sicherer.`}},
+    {l:'Mit Medizin behandeln',use:'medi',fn:()=>'Die Pupillen werden wieder normal. Schade eigentlich, sagt Leo.'}]});
+ev('a_morse',{scen:'atom',once:1,min:4,art:'🔔',title:'Klopfzeichen im Rohr',text:()=>'Aus dem Wasserrohr kommen Klopfzeichen. Morsecode! Jemand in einem Nachbarbunker: „H-A-B-T  I-H-R  W-A-S-S-E-R?“',
+  choices:[{l:'1 Suppe gegen 2 Wasser tauschen',cond:()=>has('suppe'),fn:()=>{take('suppe');add('wasser',2);queue('a_morse2',R(3,5));return 'Ihr schickt die Dose durch den Kriechgang. Zurück kommen 2 Flaschen und ein Zettel: „Danke! – Familie Öztürk“.'}},
+    {l:'Zurückklopfen: „N-E-I-N“',fn:()=>'Stille im Rohr.'}]});
+ev('a_morse2',{chain:1,art:'🤝',title:'Die Öztürks',text:()=>'Wieder Klopfzeichen: „W-I-R  H-A-B-E-N  M-E-D-I-Z-I-N  Z-U-V-I-E-L“. Die Nachbarn wollen euch etwas Gutes tun.',
+  choices:[{l:'Gerne!',fn:()=>{add('medi');mood(+2);return 'Durch den Kriechgang kommt eine Packung Medizin. Und eine Zeichnung von ihrer Tochter.'}}]});
+ev('a_emp',{scen:'atom',once:1,min:3,art:'⚡',title:'Elektromagnetischer Puls',cond:()=>has('radio')||has('lampe'),text:()=>'Ein greller Blitz am Himmel, dann knistert jedes Gerät im Bunker. Das Radio raucht, die Taschenlampe flackert.',
+  choices:[{l:'Mit Werkzeug reparieren',need:'werkzeug',fn:()=>'Lötkolben gibt es nicht, aber Kaugummi und Draht. Alles läuft wieder.'},
+    {l:'Hoffen, dass es hält',fn:()=>{if(chance(.5)&&has('radio')){take('radio');return 'Das Radio ist hin. Nur noch Schrott. Immerhin: +1 ⚙️.'+(add('schrott'),'')}return 'Es knistert noch ein bisschen, dann geht wieder alles. Glück gehabt.'}}]});
+ev('a_flugblatt',{scen:'atom',once:1,min:5,art:'📄',title:'Flugblätter',text:()=>'Durch den Lüftungsschacht flattert ein Zettel: „BLEIBEN SIE IN IHREN SCHUTZRÄUMEN. HILFE IST UNTERWEGS. TRINKEN SIE KEIN REGENWASSER.“',
+  choices:[{l:'Vorlesen und hoffen',fn:()=>{mood(+2);return 'Hilfe ist unterwegs! Das Wort „unterwegs“ wird den ganzen Tag wiederholt.'}},
+    {l:'Als Brennmaterial aufheben',fn:()=>{add('schrott');return 'Papier ist Papier. Und hinten ist ein Stück Blech dran: +1 ⚙️.'}}]});
+ev('a_soldat',{scen:'atom',once:1,min:6,art:'🎖️',title:'Ein verletzter Soldat',text:()=>'Ein Soldat liegt vor der Luke, das Bein blutet. „Kai… Gefreiter Kai. Meine Einheit ist weg.“',
+  choices:[{l:'Reinholen und versorgen',use:'medi',fn:()=>{const k=joinPerson(EXTRA.kai);return 'Kai kommt zu euch. Er ist ein 🎖️ Kämpfer: Mit ihm gibt es weniger Verletzungen bei Kämpfen.'}},
+    {l:'Reinholen ohne Medizin',fn:()=>{const k=joinPerson(EXTRA.kai);k.hurt=2;return 'Kai beißt die Zähne zusammen. Er ist schwer verletzt, aber jetzt einer von euch.'}},
+    {l:'Ihm Wasser geben und weiterschicken',cond:()=>has('wasser'),fn:()=>{take('wasser');add('armbrust');return 'Zum Dank lässt er seine Armbrust da. „Ich komm schon klar.“'}}]});
+ev('a_wasserverseucht',{scen:'atom',once:1,min:5,cond:()=>G.rad>=30&&G.inv.wasser>=2,art:'🧪',title:'Verseuchtes Wasser',text:()=>'Der Geigerzähler schlägt über den Wasserflaschen aus. Staub ist durch die Deckel gekrochen.',
+  choices:[{l:'Durch die Gasmaske filtern',need:'maske',fn:()=>'Langsam, Tropfen für Tropfen, durch den Filter. Das Wasser ist gerettet.'},
+    {l:'Zwei Flaschen wegschütten',fn:()=>{take('wasser',2);return 'Schmerzhaft, aber sicher.'}},
+    {l:'Trotzdem trinken',fn:()=>{const p=rp();if(p)p.sick=Math.max(1,p.sick);return `${nm(p)} trinkt als Erste. Am Abend ist ${nm(p)} übel.`}}]});
+ev('a_sirene',{scen:'atom',min:4,art:'🚨',title:'Sirenen!',text:()=>'Die Sirenen heulen wieder. Noch ein Angriff?! Alle drängen sich in die hinterste Ecke.',
+  choices:[{l:'Ruhe bewahren',fn:()=>{if(chance(.6)){mood(-1);return 'Nach zehn Minuten verstummt sie. Ein Fehlalarm. Alle zittern noch Stunden.'}G.rad=clamp(G.rad+15,0,100);return 'Ein entferntes Donnern. Kein Treffer in der Nähe, aber der Staub kommt wieder: +15 ☢️.'}},
+    {l:'Lüftung zuhalten',fn:()=>{const p=rp();if(p)p.sick=Math.max(1,p.sick);return `Kein Staub kommt rein, aber die Luft wird stickig. ${nm(p)} kippt fast um.`}}]});
+
+/* --- Zombie: neue Ereignisse --- */
+ev('z_belagerung',{chain:1,art:'🧟',title:'BELAGERUNG',text:()=>`Der Lärm hat sie angelockt. ${G.home==='wohnung'?'Das ganze Treppenhaus':'Der ganze Garten'} ist voller Zombies. Sie drücken alle gleichzeitig.`,
+  choices:[{l:'Alles geben! (großer Kampf)',fn:()=>{if(won()){G.noise=0;add('schrott',3);return 'Ihr habt die Welle zurückgeschlagen! Hinterher ist Ruhe. Und überall liegt Schrott: +3 ⚙️.'}const a=shuffle(insideH().slice()).slice(0,2);a.forEach(p=>p.hurt=Math.max(1,p.hurt));const s=stealRandom(2);G.noise=30;return `Sie brechen durch. ${a.map(p=>p.name).join(' und ')} werden verletzt, ${s} geht kaputt. Irgendwann ziehen sie weiter.`}},
+    {l:'Sich verstecken und beten',fn:()=>{const a=shuffle(insideH().slice()).slice(0,R(1,3));a.forEach(p=>p.hurt=Math.max(1,p.hurt));G.noise=40;return `Sie kommen rein. Ihr flieht in die hinterste Ecke. ${a.map(p=>p.name).join(', ')} werden verletzt.`}}]});
+ev('z_alarm',{scen:'zombie',once:1,min:3,art:'🚗',title:'Autoalarm',text:()=>'Draußen springt ein Autoalarm an. TÜÜT-TÜÜT-TÜÜT. Jeder Zombie im Viertel dreht den Kopf.',
+  choices:[{l:'Rausrennen und Batterie abklemmen',need:'werkzeug',fn:()=>{add('schrott');return 'Drei Sekunden, ein Handgriff, Ruhe. Und die Batterie nehmt ihr gleich mit: +1 ⚙️.'}},
+    {l:'Mit der Armbrust die Hupe treffen',need:'armbrust',fn:()=>{G.noise+=8;return 'Pling! Der Alarm erstirbt mit einem Quieken.'}},
+    {l:'Abwarten',fn:()=>{G.noise+=30;return 'Eine halbe Stunde heult der Alarm. Der Lärm steigt gewaltig: +30 🔊.'}}]});
+ev('z_laster',{scen:'zombie',once:1,min:5,art:'🚚',title:'Umgekippter Lieferwagen',text:()=>'Vor dem Haus liegt ein umgekippter Supermarkt-Laster. Kisten voller Dosen! Aber drumherum torkeln Zombies.',
+  choices:[{l:'Hinrennen und kämpfen',fn:()=>{if(won()){add('suppe',3);add('wasser',2);return 'Ihr räumt den Laster leer: +3 🥫 +2 💧!'}add('suppe');const p=hurtRandom();return `Nur eine Dose geschafft, dann mussten alle zurück. ${nm(p)} ist verletzt.`}},
+    {l:'Zu gefährlich',fn:()=>'Die Kisten liegen da. Tagelang. Es tut weh, hinzusehen.'}]});
+ev('z_walkie',{scen:'zombie',once:1,min:4,cond:()=>!G.people.some(p=>p.id==='emil'),art:'📟',title:'Stimme im Walkie-Talkie',text:()=>'Leos altes Walkie-Talkie knistert: „Hallo? Ist da wer? Ich bin Emil. Ich bin im Haus gegenüber. Meine Eltern sind… weg.“',
+  choices:[{l:'„Halt durch, wir holen dich!“',fn:()=>{queue('z_walkie2',R(1,3));mood(+1);return 'Emil schluchzt vor Erleichterung. Ihr müsst einen Plan machen.'}},
+    {l:'Ihm Tipps geben, aber nicht hingehen',fn:()=>{mood(-1);return 'Ihr erklärt ihm, wie man Türen verrammelt. Irgendwann antwortet er nicht mehr.'}}]});
+ev('z_walkie2',{chain:1,art:'🧒',title:'Rettung über die Straße',text:()=>'Heute ist es so weit. Zwischen euch und Emil liegt die Straße. Und darauf: Zombies.',
+  choices:[{l:'Losrennen! (Kampf)',fn:()=>{if(won()){joinPerson(EXTRA.emil);return 'Ihr kämpft euch durch und kommt mit Emil zurück. Er ist ein 🍀 Glückskind!'}const p=hurtRandom();joinPerson(EXTRA.emil);return `Es wird knapp. ${nm(p)} wird verletzt, aber Emil ist in Sicherheit.`}},
+    {l:'Ein Seil zwischen den Fenstern spannen',need:'werkzeug',fn:()=>{joinPerson(EXTRA.emil);return 'Über ein Seil hoch über der Straße klettert Emil rüber. Die Zombies unten gucken nur.'}}]});
+ev('z_meier',{scen:'zombie',once:1,min:6,art:'🍅',title:'Herr Meier',text:()=>'Herr Meier von nebenan ist ein Zombie. Aber er steht jeden Morgen in seinem Garten und hält die Gießkanne über die Tomaten.',
+  choices:[{l:'Ihn in Ruhe lassen',fn:()=>{mood(+2);return 'Irgendwie ist das tröstlich. Leo winkt ihm jeden Morgen.'}},
+    {l:'Tomaten klauen',fn:()=>{add('suppe',2);G.noise+=10;return 'Ihr schnappt euch zwei Hände voll Tomaten (+2 🥫). Herr Meier stöhnt empört.'}}]});
+ev('z_musik',{scen:'zombie',min:5,art:'🎸',title:'Musik',text:()=>'Mia hat in der Ecke eine alte Gitarre gefunden. „Nur ein Lied! Bitte!“',
+  choices:[{l:'Ein Lied, ganz leise',fn:()=>{mood(+2);G.noise+=10;return 'Ein leises Lied. Alle summen mit. +2 Stimmung, +10 🔊.'}},
+    {l:'Ein richtiges Konzert!',fn:()=>{mood(+4);G.noise+=35;return 'Laut, schief, wunderschön. Und draußen hören es alle: +35 🔊.'}},
+    {l:'Nein, zu laut',fn:()=>{mood(-1);return 'Die Gitarre bleibt in der Ecke. Mia schmollt.'}}]});
+ev('z_biker',{scen:'zombie',once:1,min:8,art:'🏍️',title:'Die Rostigen',text:()=>'Motorräder! Eine Bande namens „Die Rostigen“ hält vor dem Haus. „Gebt uns eure Waffen, dann lassen wir euch leben.“',
+  choices:[{l:'Kämpfen!',fn:()=>{G.noise+=15;if(G.fightWin){add('schrott',2);add('wasser',2);return 'Sie hauen ab und lassen Wasser und Ersatzteile zurück: +2 💧 +2 ⚙️.'}const s=stealRandom(2);return `Sie sind zu viele. Sie nehmen ${s} mit.`}},
+    {l:'Die Axt abgeben',need:'axt',fn:()=>{take('axt');return 'Sie lachen und fahren weiter. Ohne Axt fühlt ihr euch nackt.'}},
+    {l:'Die Motorräder sind laut… warten',fn:()=>{G.noise+=20;return 'Der Lärm der Motoren lockt eine Horde an. Die Rostigen fliehen. Ihr auch, irgendwie.'}}]});
+
+/* --- Eiszeit: neue Ereignisse --- */
+ev('e_wolf',{scen:'eis',once:1,min:4,art:'🐺',title:'Das Rudel',text:()=>'Heulen, ganz nah. Ein Rudel ausgehungerter Wölfe umkreist die Luke. Ihre Augen leuchten im Schnee.',
+  choices:[{l:'Kämpfen!',fn:()=>won()?'Die Wölfe ziehen sich jaulend zurück. Respekt.':`Ein Wolf erwischt ${nm(hurtRandom())} am Bein, dann ziehen sie ab.`},
+    {l:'Feuer an der Luke (−1 🪵)',use:'holz',fn:()=>'Die Flammen halten das Rudel auf Abstand. Am Morgen sind nur noch Spuren da.'},
+    {l:'Ihnen Suppe hinwerfen',cond:()=>has('suppe'),fn:()=>{take('suppe');return 'Sie balgen sich um die Dose und verschwinden.'}}]});
+ev('e_lawine',{scen:'eis',once:1,min:5,art:'🏔️',title:'Lawine',text:()=>'Ein Grollen, dann ein dumpfer Schlag. Schnee hat den Lüftungsschacht komplett begraben. Die Luft wird dünn.',
+  choices:[{l:'Mit Werkzeug freigraben',need:'werkzeug',fn:()=>'Zwei Stunden Schaufeln. Dann zieht wieder frische, eiskalte Luft herein.'},
+    {l:'Mit der Axt durchs Eis',need:'axt',fn:()=>{const p=rp();if(p)p.cold+=2;return `${nm(p)} hackt sich draußen frei und kommt halb erfroren zurück.`}},
+    {l:'Abwarten',fn:()=>{insideH().forEach(p=>{if(chance(.4))p.sick=Math.max(1,p.sick)});return 'Die Luft wird immer schlechter. Kopfschmerzen, Übelkeit. Einige werden krank.'}}]});
+ev('e_fischer',{scen:'eis',once:1,min:6,art:'🎣',title:'Der alte Fischer',text:()=>'Ein alter Mann mit Eisbart und Angel klopft. „Ich hab Fisch. Ihr habt Holz?“',
+  choices:[{l:'1 🪵 gegen 3 Fisch',use:'holz',fn:()=>{add('suppe',3);return '„Gutes Geschäft“, brummt er. Drei gefrorene Fische (+3 🥫).'}},
+    {l:'Er soll uns das Eisfischen zeigen',fn:()=>{G.flags.fishPro=1;return 'Er zeigt euch seine Tricks. Eisfischen bringt ab jetzt mehr.'}},
+    {l:'Wegschicken',fn:()=>'Er stapft davon und singt ein altes Seemannslied.'}]});
+ev('e_schneemann',{scen:'eis',min:4,cond:()=>insideH().some(p=>p.kid),art:'⛄',title:'Ein Schneemann',text:()=>'Die Kinder betteln: „Nur fünf Minuten raus! Wir wollen einen Schneemann bauen!“',
+  choices:[{l:'Na gut, fünf Minuten',fn:()=>{mood(+3);insideH().filter(p=>p.kid).forEach(p=>p.cold++);return 'Er bekommt eine Dosensuppe als Nase. Die Kinder strahlen. Und frieren.'}},
+    {l:'Nein, zu kalt',fn:()=>{insideH().filter(p=>p.kid).forEach(p=>mood(-2,p));return 'Enttäuschte Gesichter, den ganzen Tag.'}}]});
+ev('e_huette',{scen:'eis',once:1,min:3,art:'🛖',title:'Die leere Hütte',text:()=>'Im Nachbargarten steht ein verlassenes Gartenhaus. Aus Holz. Viel Holz.',
+  choices:[{l:'Abreißen und verheizen',fn:()=>{add('holz',4);const p=rp();if(p)p.cold+=2;return `+4 🪵! ${nm(p)} hat dabei die meiste Arbeit gemacht und ist durchgefroren.`}},
+    {l:'Mit der Axt schneller zerlegen',need:'axt',fn:()=>{add('holz',5);return 'Mit der Axt geht es ruckzuck: +5 🪵.'}},
+    {l:'Lassen',fn:()=>'Vielleicht wohnt da ja noch jemand.'}]});
+ev('e_sonne',{scen:'eis',min:6,art:'☀️',title:'Die Sonne!',text:()=>'Zum ersten Mal seit Tagen scheint die Sonne. Das Thermometer klettert. Draußen glitzert alles.',
+  choices:[{l:'Alle raus in die Sonne',fn:()=>{G.temp=clamp(G.temp+15,-62,-16);insideH().forEach(p=>p.cold=0);mood(+2);return 'Gesichter in der Sonne, Augen zu. Für eine Stunde ist alles gut.'}},
+    {l:'Die Gelegenheit für Holz nutzen',fn:()=>{add('holz',2);G.temp=clamp(G.temp+15,-62,-16);return 'Bei Sonnenschein sammelt ihr Äste: +2 🪵.'}}]});
+ev('e_rentier',{scen:'eis',once:1,min:8,art:'🦌',title:'Rentiere',text:()=>'Eine Herde Rentiere zieht durch die verschneite Straße. Ihr Atem dampft wie Lokomotiven.',
+  choices:[{l:'Mit der Armbrust jagen',need:'armbrust',fn:()=>{add('suppe',4);return 'Ein Schuss. Fleisch für Tage: +4 🥫. Leo will nicht darüber reden.'}},
+    {l:'Einfach zuschauen',fn:()=>{mood(+2);return 'Wunderschön. Mia sagt, eins hatte eine rote Nase.'}}]});
+
 /* --- Eiszeit --- */
 ev('e_sturm',{scen:'eis',min:2,art:'🌨️',title:'Blizzard',text:()=>'Ein Schneesturm tobt über euch. Durch die Lüftung pfeift eisiger Wind, auf dem Boden liegt Pulverschnee.',
   choices:[{l:'Extra-Holz verbrennen',use:'holz',fn:()=>{insideH().forEach(p=>p.cold=0);return 'Das Feuer prasselt. Alle rücken zusammen und wärmen sich die Hände. Herrlich.'}},
@@ -1019,20 +1148,36 @@ nev('n_schlafwandler',{scen:'both',art:'🧸',title:'Schlafwandler',cond:()=>ins
     {l:'Laut rufen',fn:()=>{G.ctx.hurt=Math.max(1,G.ctx.hurt);return `${nm(G.ctx)} erschrickt und fällt von der Leiter. Aua.`}}]});
 function pickNight(){if(G.day<2||!insideH().length||!chance(.4))return null;const a=NIGHT.filter(e=>(e.scen==='both'||e.scen===G.scen)&&e.id!==G.last&&(!e.cond||e.cond()));return a.length?pick(a):null}
 
+const FLAVOR_S={
+  atom:['Der Geigerzähler knackt leise vor sich hin.','{p} hat einen Ausschlag am Arm. Hoffentlich nichts.','Durch den Spalt der Luke rieselt grauer Staub.','{p} malt einen Atompilz an die Wand und übermalt ihn wieder.','Irgendwo in der Ferne grollt es. Ein Nachbeben?','{p} fragt, ob die Sonne noch scheint.'],
+  zombie:['Oben schlurft etwas vorbei. Dann ist es weg.','{p} schärft die Axt, obwohl sie scharf ist.','Ein fernes Stöhnen, wie ein Chor.','{p} zählt, wie viele Zombies vorbeigehen: 23.','Ein Auto rollt führerlos die Straße runter und kracht irgendwo rein.','{p} übt, ganz leise zu niesen.'],
+  eis:['Das Eis an der Wand knackt wie Popcorn.','{p} hat sich drei Paar Socken übereinander angezogen.','Der Atem bildet kleine Wolken im Licht.','{p} zeichnet Schneeflocken auf die beschlagene Wand.','Draußen ist alles so still, dass man das Herz schlagen hört.','{p} fragt, ob es irgendwo noch Sommer ist.']};
 const FLAVOR=['{p} zählt die Dosen zum dritten Mal.','{p} kritzelt Strichmännchen an die Wand.','Draußen heult der Wind über die Luke.','{p} schwört, oben Schritte gehört zu haben.','Die Glühbirne summt. Sonst nichts.','{p} hat vergessen, welcher Wochentag ist.','{p} erzählt von früher. Von Pizza.','Es riecht nach Beton und Angst.','{p} macht Liegestütze, bis die Arme zittern.','Irgendwo tropft es.'];
 
 /* ---------- Tagesablauf ---------- */
 function canUse(ch){if(ch.need&&!has(ch.need))return `braucht ${ITEMS[ch.need].e}`;if(ch.use&&!has(ch.use))return `verbraucht ${ITEMS[ch.use].e}`;if(ch.cond&&!ch.cond())return 'nicht möglich';return ''}
-const FIGHTS={krabbler:{1:'axt'},pluenderer:{1:'armbrust'},kratzen:{0:'armbrust',1:'axt'},zhund:{0:'armbrust',1:'axt'},e_baer:{2:'axt'},
+const FIGHTS={z_belagerung:{0:'best'},z_laster:{0:'best'},z_walkie2:{0:'best'},z_biker:{0:'best'},e_wolf:{0:'best'},krabbler:{1:'axt'},pluenderer:{1:'armbrust'},kratzen:{0:'armbrust',1:'axt'},zhund:{0:'armbrust',1:'axt'},e_baer:{2:'axt'},
   a_tuer:{0:'armbrust',1:'axt',3:'none'},a_fenster:{0:'armbrust',1:'axt',2:'none'},a_nachbar:{0:'axt',1:'none'},a_treppe:{1:'axt'},n_schrei:{0:'armbrust'}};
-const foeFor=id=>({krabbler:G.scen==='atom'?'🪳':'🐀',pluenderer:'💀',zhund:'🐺',e_baer:'🐻‍❄️'}[id]||'🧟');
+const FOES={
+  zombie:[{e:'🧟',n:'Schlurfer',hp:1,life:1,w:5},{e:'🏃',n:'Läufer',hp:1,life:.6,w:3},{e:'🧟‍♂️',n:'Brocken',hp:2,life:1.35,sz:1.25,w:2},{e:'😱',n:'Schreier',hp:1,life:.9,scream:1,w:2}],
+  atom:[{e:'💀',n:'Plünderer',hp:1,life:1,w:4},{e:'☣️',n:'Mutant',hp:2,life:1.3,sz:1.2,w:2},{e:'🪳',n:'Riesenschabe',hp:1,life:.55,sz:.75,w:3},{e:'💣',n:'Brandbombe',hp:1,life:1.1,bomb:1,w:1}],
+  eis:[{e:'🐺',n:'Wolf',hp:1,life:.7,w:4},{e:'🦅',n:'Riesenadler',hp:1,life:.85,fly:1,w:2},{e:'🐻‍❄️',n:'Eisbär',hp:3,life:1.7,sz:1.45,w:1}]};
+function fightCfg(id){
+  if(id==='krabbler')return {foes:[{e:G.scen==='atom'?'🪳':'🐀',n:'Schwarm',hp:1,life:.5,sz:.7}],need:9};
+  if(id==='pluenderer'||id==='z_biker')return {foes:[{e:'💀',n:'Bandit',hp:1,life:1,w:4},{e:'💣',n:'Molotow',hp:1,life:1.1,bomb:1,w:1}]};
+  if(id==='zhund')return {foes:[{e:'🐺',n:'Zombie-Hund',hp:1,life:.6}],need:5};
+  if(id==='e_baer')return {foes:[{e:'🐻‍❄️',n:'Eisbär',hp:4,life:2.4,sz:1.6}],need:1};
+  if(id==='e_wolf')return {foes:[{e:'🐺',n:'Wolf',hp:1,life:.7,w:3},{e:'🐺',n:'Leitwolf',hp:2,life:1,sz:1.3,w:1}]};
+  if(id==='z_belagerung')return {need:10};
+  return {}}
 function choose(i){const e=G.ev,ch=e.choices[i];if(canUse(ch)||G.fighting)return;sfx.click();
   const w=(FIGHTS[e.id]||{})[i];
-  if(w){G.fighting=true;clearInterval(G.voteT);startFight({weapon:w,foe:foeFor(e.id),title:G.evTitle},win=>{G.fighting=false;G.fightWin=win;resolveChoice(ch);G.fightWin=undefined});return}
+  const wp=w==='best'?(has('axt')?'axt':has('armbrust')?'armbrust':'none'):w;
+  if(w){G.fighting=true;clearInterval(G.voteT);startFight({weapon:wp,title:G.evTitle,...fightCfg(e.id)},win=>{G.fighting=false;G.fightWin=win;resolveChoice(ch);G.fightWin=undefined});return}
   resolveChoice(ch)}
 function resolveChoice(ch){G.riskUsed=false;if(ch.use)take(ch.use);let r=ch.fn();G.stats.events++;
   if(typeof r!=='object')r={text:r};
-  if(typeof G.fightWin==='boolean'){
+  if(typeof G.fightWin==='boolean'){if(G.scen==='zombie')G.noise=clamp(G.noise+12,0,100);
     if(G.fightWin){r.text='💥 Kampf gewonnen! '+r.text;if(chance(.5)){add('schrott');r.text+=' Beute: +1 ⚙️.'}}
     else{r.text='💢 Kampf verloren! '+r.text;if(!G.riskUsed){const p=hurtRandom();if(p)r.text+=` Im Getümmel wurde ${p.name} verletzt.`}shakeStage()}}
   G.res={text:r.text,end:r.end};clearInterval(G.voteT);renderBunker()}
@@ -1042,31 +1187,48 @@ const FX={raf:0};
 function startFight(cfg,done){
   const el=$('#fight'),cv=$('#cv-fight'),c=cv.getContext('2d'),W=cv.width,H=cv.height;el.hidden=false;
   const dm={leicht:1.3,normal:1,albtraum:.78}[G.diff]||1;
-  const life=({armbrust:2.3,axt:1.85,none:1.45}[cfg.weapon])*dm*(1+lvl('tuer')*.08);
-  const need=cfg.weapon==='none'?5:6;
-  const F={t:0,hit:0,lives:3,tg:[],spawn:.4,end:0,win:null,parts:[],flash:0,last:performance.now()};
-  $('#f-title').textContent=cfg.title;$('#f-sub').textContent=cfg.weapon==='armbrust'?'🏹 Mit der Armbrust':cfg.weapon==='axt'?'🪓 Mit der Axt':'🍳 Mit allem, was da ist';
-  const upd=()=>{$('#f-lives').textContent='❤️'.repeat(F.lives)+'🖤'.repeat(3-F.lives);$('#f-count').textContent=`${F.hit}/${need} 🎯`};upd();
-  const hitAt=(x,y)=>{if(F.win!==null)return;let best=-1,bd=1e9;F.tg.forEach((g,i)=>{const r=26+60*(g.age/life);const d=Math.hypot(g.x-x,g.y-y);if(d<r+14&&d<bd){bd=d;best=i}});
-    if(best<0){tone(200,.05,'square',.03);return}const g=F.tg.splice(best,1)[0];F.hit++;tone(cfg.weapon==='armbrust'?900:500,.08,'square',.07);
-    for(let i=0;i<14;i++)F.parts.push({x:g.x,y:g.y,vx:(Math.random()-.5)*400,vy:(Math.random()-.5)*400,l:.5});upd();if(F.hit>=need){F.win=true;F.end=1.1;sfx.good()}};
+  const base=({armbrust:2.3,axt:1.85,none:1.45}[cfg.weapon])*dm*(1+lvl('tuer')*.08);
+  const foes=cfg.foes||FOES[G.scen];const dmg=cfg.weapon==='axt'?2:1;
+  let need=cfg.need||(cfg.weapon==='none'?5:6),extra='';
+  if(G.scen==='zombie'&&G.traps>0&&need>2){G.traps--;need-=2;extra=' · 🪤 Falle: −2 Gegner'}
+  const F={t:0,hit:0,lives:3,tg:[],spawn:.5,end:0,win:null,parts:[],flash:0,msg:'',msgT:0,last:performance.now()};
+  $('#f-title').textContent=cfg.title;$('#f-sub').textContent=(cfg.weapon==='armbrust'?'🏹 Armbrust: mehr Zeit':cfg.weapon==='axt'?'🪓 Axt: doppelter Schaden':'🍳 Ohne Waffe: schnell sein!')+extra;
+  $('#f-help').textContent=foes.map(f=>`${f.e} ${f.n}${f.hp>1?` (${Math.ceil(f.hp/dmg)}× treffen)`:''}${f.bomb?' (NICHT antippen!)':''}${f.scream?' (ruft Verstärkung)':''}${f.fly?' (fliegt)':''}`).join(' · ');
+  const upd=()=>{$('#f-lives').textContent='❤️'.repeat(Math.max(0,F.lives))+'🖤'.repeat(3-Math.max(0,F.lives));$('#f-count').textContent=`${F.hit}/${need} 🎯`};upd();
+  const wpick=()=>{let s=foes.reduce((a,f)=>a+(f.w||1),0)*Math.random();for(const f of foes){s-=(f.w||1);if(s<=0)return f}return foes[0]};
+  const spawn=(x,y)=>{const f=wpick();F.tg.push({f,hp:f.hp,x:x??80+Math.random()*(W-160),y:y??110+Math.random()*(H-190),age:0,life:base*f.life,wob:Math.random()*6,vx:f.fly?(Math.random()<.5?-1:1)*170:0})};
+  const say=t=>{F.msg=t;F.msgT=1.4};
+  const finish=win=>{F.win=win;F.end=1.1;win?sfx.good():sfx.bad()};
+  const hitAt=(x,y)=>{if(F.win!==null)return;let best=-1,bd=1e9;F.tg.forEach((g,i)=>{const r=(26+60*(g.age/g.life))*(g.f.sz||1);const d=Math.hypot(g.x-x,g.y-y);if(d<r+14&&d<bd){bd=d;best=i}});
+    if(best<0){tone(200,.05,'square',.03);return}const g=F.tg[best];
+    if(g.f.bomb){F.tg.splice(best,1);F.lives--;F.flash=.5;sfx.boom();say('BUMM! Nicht die Bombe!');upd();if(F.lives<=0)finish(false);return}
+    g.hp-=dmg;for(let i=0;i<8;i++)F.parts.push({x:g.x,y:g.y,vx:(Math.random()-.5)*300,vy:(Math.random()-.5)*300,l:.35});
+    if(g.hp>0){g.age=Math.max(0,g.age-.35*g.life);tone(300,.08,'square',.07);return}
+    F.tg.splice(best,1);F.hit++;tone(cfg.weapon==='armbrust'?900:500,.08,'square',.07);
+    for(let i=0;i<14;i++)F.parts.push({x:g.x,y:g.y,vx:(Math.random()-.5)*400,vy:(Math.random()-.5)*400,l:.5});upd();if(F.hit>=need)finish(true)};
   const onDown=e=>{const r=cv.getBoundingClientRect();hitAt((e.clientX-r.left)/r.width*W,(e.clientY-r.top)/r.height*H)};
-  const onKey=e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();if(F.tg.length){const g=F.tg.reduce((a,b)=>a.age>b.age?a:b);hitAt(g.x,g.y)}}};
+  const onKey=e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();const real=F.tg.filter(t=>!t.f.bomb);if(real.length){const g=real.reduce((a,b)=>a.age/a.life>b.age/b.life?a:b);hitAt(g.x,g.y)}}};
   cv.addEventListener('pointerdown',onDown);addEventListener('keydown',onKey);
   const bg=G.scen==='eis'?['#1a2a44','#6f8fb5']:G.scen==='atom'?['#2a1210','#7a3a1c']:['#0a1614','#2a4a3a'];
   const loop=now=>{const dt=Math.min(.05,(now-F.last)/1000);F.last=now;F.t+=dt;
-    if(F.win===null){F.spawn-=dt;if(F.spawn<=0&&F.tg.length<3){F.spawn=Math.max(.35,.85-F.t*.03);F.tg.push({x:80+Math.random()*(W-160),y:110+Math.random()*(H-190),age:0,wob:Math.random()*6})}
-      F.tg.forEach(g=>g.age+=dt);for(let i=F.tg.length-1;i>=0;i--){if(F.tg[i].age>=life){F.tg.splice(i,1);F.lives--;F.flash=.35;sfx.growl();upd();if(F.lives<=0){F.win=false;F.end=1.1;sfx.bad()}}}}
+    if(F.win===null){F.spawn-=dt;if(F.spawn<=0&&F.tg.filter(t=>!t.f.bomb).length<3){F.spawn=Math.max(.35,.85-F.t*.03);spawn()}
+      F.tg.forEach(g=>{g.age+=dt;if(g.vx){g.x+=g.vx*dt;if(g.x<60||g.x>W-60)g.vx*=-1}});
+      for(let i=F.tg.length-1;i>=0;i--){const g=F.tg[i];if(g.age>=g.life){F.tg.splice(i,1);if(g.f.bomb){say('Puh, die Bombe ist verpufft.');continue}
+        F.lives--;F.flash=.35;sfx.growl();upd();if(g.f.scream){spawn();spawn();say('😱 Der Schreier ruft Verstärkung!')}if(F.lives<=0){finish(false);break}}}}
     else{F.end-=dt;if(F.end<=0){cancelAnimationFrame(FX.raf);cv.removeEventListener('pointerdown',onDown);removeEventListener('keydown',onKey);el.hidden=true;done(F.win);return}}
     const g=c.createLinearGradient(0,0,0,H);g.addColorStop(0,bg[0]);g.addColorStop(1,bg[1]);c.fillStyle=g;c.fillRect(0,0,W,H);
     c.fillStyle='rgba(0,0,0,.35)';for(let i=0;i<8;i++)c.fillRect(i*110-20,H*.55-((i*37)%60),90,H);
-    c.fillStyle='#2a201a';c.fillRect(0,H-40,W,40);
-    if(G.scen==='eis'){c.fillStyle='rgba(255,255,255,.8)';for(let i=0;i<60;i++){c.beginPath();c.arc((i*97+F.t*60)%W,(i*53+F.t*90)%H,1.5,0,7);c.fill()}}
-    F.tg.forEach(t=>{const k=t.age/life,sz=40+80*k,sh=Math.sin(F.t*8+t.wob)*4*k;
-      c.strokeStyle=`rgba(224,82,58,${.4+k*.6})`;c.lineWidth=5;c.beginPath();c.arc(t.x,t.y,sz*.62,-Math.PI/2,-Math.PI/2+Math.PI*2*(1-k));c.stroke();
-      c.font=`${sz}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(cfg.foe,t.x+sh,t.y)});
+    c.fillStyle=G.scen==='eis'?'#e8f0f6':'#2a201a';c.fillRect(0,H-40,W,40);
+    if(G.scen==='atom'){c.fillStyle=`rgba(120,255,80,${.04+.04*Math.sin(F.t*7)})`;c.fillRect(0,0,W,H)}
+    F.tg.forEach(t=>{const k=t.age/t.life,sz=(40+80*k)*(t.f.sz||1),sh=Math.sin(F.t*8+t.wob)*4*k;
+      c.strokeStyle=t.f.bomb?`rgba(242,182,50,${.5+k*.5})`:`rgba(224,82,58,${.4+k*.6})`;c.lineWidth=5;c.beginPath();c.arc(t.x,t.y,sz*.62,-Math.PI/2,-Math.PI/2+Math.PI*2*(1-k));c.stroke();
+      c.font=`${sz}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(t.f.e,t.x+sh,t.y);
+      if(t.f.hp>1){for(let i=0;i<t.f.hp;i++){c.fillStyle=i<t.hp?'#e0523a':'#333';c.fillRect(t.x-t.f.hp*7+i*14,t.y+sz*.62+6,11,5)}}});
     F.parts=F.parts.filter(p=>(p.l-=dt)>0);F.parts.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;c.fillStyle=`rgba(255,${G.scen==='zombie'?120:200},80,${p.l*2})`;c.fillRect(p.x,p.y,5,5)});
+    if(G.scen==='eis'){c.fillStyle='rgba(255,255,255,.85)';for(let i=0;i<80;i++){c.beginPath();c.arc((i*97+F.t*(80+i%4*30))%W,(i*53+F.t*110)%H,1.5+(i%2),0,7);c.fill()}
+      const fog=Math.pow(Math.max(0,Math.sin(F.t*.8)),6)*.75;if(fog>.02){c.fillStyle=`rgba(235,242,250,${fog})`;c.fillRect(0,0,W,H)}}
     if(F.flash>0){F.flash-=dt;c.fillStyle=`rgba(200,0,0,${F.flash})`;c.fillRect(0,0,W,H)}
+    if(F.msgT>0){F.msgT-=dt;c.font='bold 26px Archivo Narrow, Arial';c.textAlign='center';c.textBaseline='top';c.fillStyle=`rgba(255,240,200,${Math.min(1,F.msgT)})`;c.fillText(F.msg,W/2,16)}
     if(F.win!==null){c.fillStyle='rgba(0,0,0,.55)';c.fillRect(0,0,W,H);c.font='72px "Bowlby One SC", Impact, sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillStyle=F.win?'#f2b632':'#e0523a';c.fillText(F.win?'GESCHAFFT!':'AUTSCH!',W/2,H/2)}
     else if(F.t<1.1){c.font='60px "Bowlby One SC", Impact, sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillStyle=`rgba(242,182,50,${1.1-F.t})`;c.fillText('LOS!',W/2,H/2)}
     FX.raf=requestAnimationFrame(loop)};
@@ -1075,11 +1237,11 @@ function startFight(cfg,done){
 function pickEvent(){
   const due=G.queue.filter(q=>q.day<=G.day).sort((a,b)=>a.day-b.day);
   for(const q of due){G.queue.splice(G.queue.indexOf(q),1);const e=EV[q.id];if(!e.cond||e.cond())return e}
-  if(G.home==='wohnung'&&G.day>=2&&insideH().length&&chance(D().atk)){const a=ATTACKS.filter(e=>G.day>=(e.min||0)&&e.id!==G.last);if(a.length)return pick(a)}
+  if(G.home==='wohnung'&&G.day>=2&&insideH().length&&chance(D().atk)){const a=ATTACKS.filter(e=>G.day>=(e.min||0)&&e.id!==G.last&&G.day-(G.usedDay[e.id]??-99)>=3);if(a.length)return pick(a)}
   if(!insideH().length||!chance(.95))return null;
-  const pool=POOL.filter(e=>e.id!=='start'&&(e.scen==='both'||e.scen===G.scen)&&(!e.once||!G.used[e.id])&&G.day>=(e.min||0)&&(!e.cond||e.cond())&&G.last!==e.id);
-  if(!pool.length)return null;const e=pick(pool);return e}
-function setEvent(e){G.ev=e;G.res=null;G.ctx=null;if(e){G.used[e.id]=1;G.last=e.id;G.evText=e.text();G.evTitle=typeof e.title==='function'?e.title():e.title}}
+  const pool=POOL.filter(e=>e.id!=='start'&&(e.scen==='both'||e.scen===G.scen)&&(e.once?!G.used[e.id]:G.day-(G.usedDay[e.id]??-99)>=7)&&G.day>=(e.min||0)&&(!e.cond||e.cond())&&G.last!==e.id);
+  if(!pool.length)return null;const wl=[];pool.forEach(e=>{const w=e.scen===G.scen?3:1;for(let i=0;i<w;i++)wl.push(e)});return pick(wl)}
+function setEvent(e){G.ev=e;G.res=null;G.ctx=null;if(e){G.used[e.id]=1;G.usedDay=G.usedDay||{};G.usedDay[e.id]=G.day;G.last=e.id;G.evText=e.text();G.evTitle=typeof e.title==='function'?e.title():e.title}}
 function endDay(){
   if(G.ev&&!G.res)return;
   if(G.res&&G.res.end){endGame(G.res.end);return}
@@ -1089,7 +1251,7 @@ function endDay(){
   const L=[];
   // Kälte
   let warm=true;
-  if(G.scen==='eis'){if(has('holz')){if(chance([0,.25,.45,.65][lvl('ofen')]))L.push('Der Kaminofen hält die Glut bis zum Morgen. Kein Holz verbraucht. 🔥');else take('holz')}else{warm=false;L.push('Kein Holz mehr! Es ist eiskalt. 🥶')}}
+  if(G.scen==='eis'){if(has('holz')){if(chance([0,.25,.45,.65][lvl('ofen')]))L.push('Der Kaminofen hält die Glut bis zum Morgen. Kein Holz verbraucht. 🔥');else{take('holz');if(G.temp<-50){if(has('holz')){take('holz');L.push(`Bei ${G.temp} °C verbrennen zwei Scheite in einer Nacht.`)}else{warm=false;L.push('Das Holz reicht nicht für die eisige Nacht! 🥶')}}}}else{warm=false;L.push('Kein Holz mehr! Es ist eiskalt. 🥶')}}
   // Rationen
   inside().forEach(p=>{if(p.cat||p.dog)return;const r=G.ration[p.id]||{};if(r.f&&has('suppe')){take('suppe');p.hunger=0}else p.hunger++;if(r.w&&has('wasser')){take('wasser');p.thirst=0}else p.thirst++});
   G.ration={};
@@ -1107,6 +1269,7 @@ function endDay(){
     if(p.mood<=1&&chance(.22)&&aliveH().length>1){kill(p,'ist in den Wahnsinn geflohen');p.left=true;L.push(`${p.name} hat in der Nacht die Luke geöffnet und ist schreiend davongerannt. Ihr habt ${p.name} nie wiedergesehen.`)}
   });
   if((pet('moritz')||pet('zwei'))&&G.day%3===0)mood(+1);
+  specNight(L);
   if(pet('petrova')&&G.day%4===0){mood(+1);L.push('Frau Petrova hat für alle Socken gestrickt. 🧶')}
   const every=k=>[0,5,4,3][lvl(k)];
   if(lvl('tank')&&G.day%every('tank')===0){add('wasser');L.push('Der Wassertank hat eine Flasche Kondenswasser gesammelt. 💧')}
@@ -1116,18 +1279,19 @@ function endDay(){
   G.day++;
   if(!aliveH().length){G.log=L;endGame(G.scen==='eis'&&G.people.some(p=>p.cause==='erfroren')?'erfroren':'stille');return}
   if(G.day>GOAL){G.log=L;const s=aliveH();endGame(chance(.08)?'traum':G.scen==='zombie'&&G.flags.fort+lvl('tuer')>=2&&s.length>1?'festung':s.length===1?'allein':'licht');return}
-  if(L.length===0||chance(.4)){const p=rp();L.push(FLAVOR[R(0,FLAVOR.length-1)].replace('{p}',nm(p)))}
+  if(L.length===0||chance(.45)){const p=rp();const fl=FLAVOR.concat(FLAVOR_S[G.scen]||[],FLAVOR_S[G.scen]||[]);L.push(pick(fl).replace('{p}',nm(p)))}
   G.log=[`Tag ${G.day}.`,...L];
   setEvent(pickEvent());renderBunker();window.scrollTo({top:0,behavior:'smooth'});
 }
 function returnFrom(p){
   const out=[];
+  if(p.fishing){p.fishing=0;const n=R(1,3)+(G.flags.fishPro?1:0);add('suppe',n);p.cold++;if(chance(.15)){p.hurt=Math.max(1,p.hurt);p.cold+=2;out.push(`${p.name} ist beim Fischen ins Eis eingebrochen! Nass, verletzt, eiskalt. Aber ${n} Fische sind dabei.`)}else out.push(`${p.name} ist vom Eisfischen zurück: ${'🐟'.repeat(n)} (+${n} 🥫).`);return out}
   if(p.catTrip){p.catTrip=0;if(chance(.6)){add('suppe');out.push('Moritz ist zurück! Mit einer Dose Suppe im Maul. Niemand fragt.')}else out.push('Moritz ist zurück. Dreckig, zufrieden, mit leeren Pfoten.');return out}
   const g=p.gear,hasG=k=>g.includes(k);let death=.13;
-  if(hasG('axt')||hasG('armbrust'))death-=.07;if(G.scen==='zombie'&&!hasG('axt')&&!hasG('armbrust'))death+=.1;if(G.flags.buch)death-=.04;if(p.sick||p.hurt)death+=.1;if(p.id==='leo')death-=.08;if(pet('emil'))death-=.04;death+=p.expRisk+D().exp;
+  if(hasG('axt')||hasG('armbrust'))death-=.07;if(G.scen==='zombie'&&!hasG('axt')&&!hasG('armbrust'))death+=.1;if(G.flags.buch)death-=.04;if(p.sick||p.hurt)death+=.1;if(p.id==='leo')death-=.08;if(p.mut)death-=.05;if(G.scen==='atom'&&G.day<=7)death+=.08;if(pet('emil'))death-=.04;death+=p.expRisk+D().exp;
   if(chance(death)){kill(p,'kam vom Ausflug nicht zurück');p.gear=[];out.push(`${p.name} ist nicht zurückgekehrt. Die Ausrüstung ist auch weg.`);sfx.bad();return out}
   g.forEach(k=>add(k));p.gear=[];p.expRisk=0;
-  const loot=[];const n=R(1,3)+(hasG('lampe')?1:0)+(p.id==='mia'||p.id==='tina'?2:0);p.expLoot.forEach(k=>{add(k);loot.push(ITEMS[k].e)});p.expLoot=[];for(let i=0;i<n;i++){const k=chance(.75)?pick(G.scen==='eis'?['suppe','wasser','holz','holz','holz']:['suppe','suppe','wasser','wasser','wasser']):pick(['medi','karten','werkzeug','spray','buch','lampe']);add(k);loot.push(ITEMS[k].e)}
+  const loot=[];const n=R(1,3)+(hasG('lampe')?1:0)+(p.id==='mia'||p.id==='tina'?2:0)+(p.mut?1:0);p.expLoot.forEach(k=>{add(k);loot.push(ITEMS[k].e)});p.expLoot=[];for(let i=0;i<n;i++){const k=chance(.75)?pick(G.scen==='eis'?['suppe','wasser','holz','holz','holz']:['suppe','suppe','wasser','wasser','wasser']):pick(['medi','karten','werkzeug','spray','buch','lampe']);add(k);loot.push(ITEMS[k].e)}
   const sc=R(1,2)+(G.home==='wohnung'?1:0);add('schrott',sc);for(let i=0;i<sc;i++)loot.push('⚙️');
   out.push(`${p.name} ist zurück! Mitgebracht: ${loot.join(' ')}.`);p.hunger=Math.max(0,p.hunger-2);p.thirst=Math.max(0,p.thirst-1);
   if(G.scen==='eis'){const h=R(1,2);add('holz',h);for(let i=0;i<h;i++)loot.push('🪵');out[0]=`${p.name} ist zurück! Mitgebracht: ${loot.join(' ')}.`}
@@ -1143,7 +1307,7 @@ function returnFrom(p){
 }
 function sendOut(){const sel=document.querySelector('input[name="exp-who"]:checked');if(!sel)return;const p=G.people.find(x=>x.id===sel.value);
   const gear=[...document.querySelectorAll('input[name="exp-gear"]:checked')].map(i=>i.value);gear.forEach(k=>take(k));
-  p.gear=gear;p.away=R(2,4);delete G.ration[p.id];G.stats.exps++;if(G.stats.exps>=5)ach('ausflug');sfx.click();
+  p.gear=gear;p.away=R(2,4);delete G.ration[p.id];if(G.scen==='atom'){const d=lvl('filter')?3:(G.day<=6?9:6);G.rad=clamp(G.rad+d,0,100);G.log.push(`☢️ Beim Öffnen der Luke weht Staub herein (+${d}).`)}G.stats.exps++;if(G.stats.exps>=5)ach('ausflug');sfx.click();
   G.log.push(`${p.name} ist nach draußen gegangen${gear.length?' mit '+gear.map(k=>ITEMS[k].e).join(' '):', ohne Ausrüstung'}.`);renderBunker()}
 function buildUp(k){const l=G.up[k]||0;if(l>=3)return;const c=UPG_RUN[l];if(G.inv.schrott<c)return;take('schrott',c);G.up[k]=l+1;sfx.good();if(l+1>=3)ach('vollausbau');G.log.push(`${UPG[k].e} ${UPG[k].n} auf Stufe ${l+1} ausgebaut!`);renderBunker()}
 const nurseReady=()=>!!pet('sabine')&&(G.flags.nurseCd||0)<=G.day;
@@ -1181,13 +1345,13 @@ function renderBunker(){
   const usedF=Object.values(G.ration).filter(x=>x.f).length,usedW=Object.values(G.ration).filter(x=>x.w).length;
   G.people.forEach(p=>{const d=document.createElement('div');d.className='mate'+(p.alive?'':' dead');
     const canR=p.alive&&!p.away&&!p.cat&&!p.dog;const r=G.ration[p.id]||{};
-    d.innerHTML=`<canvas width="88" height="88"></canvas><div><div class="nm">${p.name} <small>${p.role}</small></div><div class="chips">${statusChips(p)}</div>${p.alive?`<div class="trait">${traitLine(p.id)}</div>`:''}</div>
+    d.innerHTML=`<canvas width="88" height="88"></canvas><div><div class="nm">${p.name} <small>${p.role}</small></div><div class="chips">${statusChips(p)}</div>${p.alive?`<div class="trait">${traitLine(p.id)}${p.mut?' · <span title="Mutation: findet mehr, sicherer draußen">👁️ Nachtsicht</span>':''}</div>`:''}</div>
       <div class="feed">${canR?`<button class="tog ${r.f?'on':''}" type="button" data-f="${p.id}" aria-label="Suppe für ${p.name}" ${!r.f&&usedF>=G.inv.suppe?'disabled':''}>🥫</button><button class="tog ${r.w?'on':''}" type="button" data-w="${p.id}" aria-label="Wasser für ${p.name}" ${!r.w&&usedW>=G.inv.wasser?'disabled':''}>💧</button>`:''}
       ${canR&&(p.sick||p.hurt)&&has('medi')?`<button class="tog on" type="button" data-m="${p.id}" aria-label="${p.name} behandeln">💊</button>`:''}${canR&&(p.sick||p.hurt)&&nurseReady()?`<button class="tog on" type="button" data-n="${p.id}" aria-label="Sabine behandelt ${p.name}" title="Sabine behandelt (ohne Medizin)">🩺</button>`:''}</div>`;
     portrait(d.querySelector('canvas'),p);crew.appendChild(d)});
   crew.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>toggleR(b.dataset.f,'f'));crew.querySelectorAll('[data-w]').forEach(b=>b.onclick=()=>toggleR(b.dataset.w,'w'));crew.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>treat(b.dataset.m));crew.querySelectorAll('[data-n]').forEach(b=>b.onclick=()=>nurse(b.dataset.n));
   // Ausflug
-  const ex=$('#exp-box');const out=G.people.find(p=>p.alive&&p.away&&!p.catTrip);
+  const ex=$('#exp-box');const out=G.people.find(p=>p.alive&&p.away&&!p.catTrip&&!p.fishing);
   if(out)ex.innerHTML=`<h3>Ausflug</h3><p class="small">${out.name} ist draußen unterwegs${out.gear.length?' mit '+out.gear.map(k=>ITEMS[k].e).join(' '):''}. Noch etwa ${out.away} ${out.away===1?'Tag':'Tage'}.</p>`;
   else if(G.day<2)ex.innerHTML=`<h3>Ausflug</h3><p class="small">Ab Tag 2 könnt ihr jemanden nach draußen schicken, um Vorräte zu suchen.</p>`;
   else{const cand=(G.flags.frozenUntil||0)>G.day?[]:insideH().filter(p=>p.sick<2&&p.hurt<2&&!p.bitten&&p.cold<3);
@@ -1196,6 +1360,7 @@ function renderBunker(){
       <div class="opts2">${GEAR.filter(k=>has(k)).map(k=>`<label><input type="checkbox" name="exp-gear" value="${k}">${ITEMS[k].e} ${ITEMS[k].n}</label>`).join('')}</div>
       <div><button class="btn ghost" type="button" id="btn-send" ${cand.length?'':'disabled'}>🎒 Losschicken</button></div>`;
     const bs=$('#btn-send');if(bs)bs.onclick=sendOut}
+  renderSpec();
   // Ausbau
   const place=G.home==='wohnung'?'Wohnung':'Bunker';
   $('#build-box').innerHTML=`<h3>${place} ausbauen · ${G.inv.schrott} ⚙️</h3><p class="small">Schrott findet ihr auf Ausflügen und bei Ereignissen.</p><div class="crew">${Object.keys(UPG).filter(k=>!UPG[k].meta&&(k!=='ofen'||G.scen==='eis')).map(k=>{const l=G.up[k]||0,c=UPG_RUN[l];
@@ -1206,7 +1371,7 @@ function renderBunker(){
     bb.innerHTML=`<h3>🔥 Verheizen</h3><p class="small">Kein Holz mehr? Aus Sachen wird ein Scheit 🪵. ${G.inv.holz} Holz reicht noch ${G.inv.holz} ${G.inv.holz===1?'Nacht':'Nächte'}.</p><div class="opts2" style="display:flex;flex-wrap:wrap;gap:6px">${ks.map(k=>`<button class="btn ghost" type="button" data-burn="${k}">${BURN[k]>1?BURN[k]+'× ':''}${ITEMS[k].e} ${ITEMS[k].n} → 🪵</button>`).join('')||'<span class="small">Nichts mehr da, was brennt.</span>'}</div>`;
     bb.querySelectorAll('[data-burn]').forEach(b=>b.onclick=()=>burn(b.dataset.burn))}else bb.hidden=true;
   // Inventar
-  $('#inv').innerHTML=Object.keys(ITEMS).map(k=>`<div class="it ${G.inv[k]?'':'zero'}"><span class="e">${ITEMS[k].e}</span><span>${ITEMS[k].n}</span><b>${G.inv[k]}</b></div>`).join('');
+  $('#inv').innerHTML=Object.keys(ITEMS).filter(k=>k!=='holz'||G.scen==='eis'||G.inv.holz).map(k=>`<div class="it ${G.inv[k]?'':'zero'}"><span class="e">${ITEMS[k].e}</span><span>${ITEMS[k].n}</span><b>${G.inv[k]}</b></div>`).join('');
   const nb=$('#btn-next');nb.disabled=!!(G.ev&&!G.res);nb.textContent=G.res&&G.res.end?'➜ Zum Ende':(G.ev&&!G.res?'Erst das Ereignis entscheiden':G.phase==='night'?'🌙 Weiterschlafen ➜':'Tag beenden ➜');
   document.body.classList.toggle('night',G.phase==='night');
 }
@@ -1257,8 +1422,17 @@ function bunkerLoop(){const cv=$('#cv-bunker'),c=cv.getContext('2d'),W=900,H=340
     if(cold){c.fillStyle='rgba(190,225,255,.18)';c.fillRect(rx,ry,rw,rh)}}
   if(G.phase==='night'){if(has('lampe')){const a=Math.sin(t*.7)*.6;const bx=300+Math.sin(t*.4)*200;const fg=c.createRadialGradient(bx,ry+rh-30,5,bx,ry+rh-30,120);fg.addColorStop(0,'rgba(255,240,190,.35)');fg.addColorStop(1,'rgba(255,240,190,0)');c.fillStyle=fg;c.beginPath();c.arc(bx,ry+rh-30,120,0,7);c.fill()}
     c.font='bold 14px Archivo Narrow, Arial';c.fillStyle='rgba(180,200,255,.8)';c.textAlign='right';c.fillText('🌙 Nacht',W-50,ry+20);c.fillStyle='rgba(10,20,50,.35)';c.fillRect(0,0,W,H)}
+  drawSpecGfx(c,t,rx,ry,rw,rh);
   drawBubble(c,t,ry+rh-22);
   BUNK.raf=requestAnimationFrame(bunkerLoop)}
+function drawSpecGfx(c,t,rx,ry,rw,rh){
+  if(G.scen==='atom'&&G.rad){c.fillStyle=`rgba(120,255,80,${G.rad/600})`;c.fillRect(rx,ry,rw,rh);const n=Math.round(G.rad/4);for(let i=0;i<n;i++){c.fillStyle=`rgba(160,255,120,${.3+.3*Math.sin(t*3+i)})`;c.beginPath();c.arc(rx+((i*137+t*12)%rw),ry+((i*71+t*(6+i%5))%rh),1.6,0,7);c.fill()}
+    c.fillStyle='#2a2f2a';rrect(c,520,110,44,30,4);c.fill();c.fillStyle=G.rad>=70?'#e0523a':G.rad>=40?'#f2b632':'#9bd651';c.font='bold 13px Archivo Narrow, Arial';c.textAlign='center';c.fillText(G.rad,542,130);
+    if(G.rad>=40&&Math.random()<G.rad/2500)tone(1800+Math.random()*800,.01,'square',.02)}
+  if(G.scen==='zombie'&&G.noise>=35&&G.home!=='wohnung'){const n=Math.min(6,Math.floor(G.noise/15));for(let i=0;i<n;i++){const x=70+i*12,y=ry-6+Math.sin(t*3+i)*3;c.fillStyle='#5a6a4a';c.fillRect(x,y-14,6,14);c.fillRect(x-2,y-18,10,6)}}
+  if(G.scen==='zombie'){c.fillStyle='rgba(0,0,0,.35)';rrect(c,rx+rw-110,ry+8,100,24,6);c.fill();c.fillStyle=G.noise>=70?'#e0523a':'#f2e9d4';c.font='bold 13px Archivo Narrow, Arial';c.textAlign='left';c.fillText('🔊 '+G.noise+(G.traps?'  🪤'+G.traps:''),rx+rw-100,ry+25)}
+  if(G.scen==='eis'){const x=548,y=108;c.fillStyle='#ddd';rrect(c,x,y,12,64,6);c.fill();c.fillStyle='#4a7ac0';const h=clamp((G.temp+62)/46,0,1)*54;c.fillRect(x+3,y+60-h,6,h);c.beginPath();c.arc(x+6,y+64,8,0,7);c.fill();c.font='bold 12px Archivo Narrow, Arial';c.fillStyle='#e8f4ff';c.textAlign='left';c.fillText(G.temp+'°',x+16,y+40)}
+}
 function sayLine(p){const L=[];
   if(p.cat)return pick(['Miau.','Mrrrau?','*schnurr*','Miiiiau!']);if(p.dog)return pick(['Wuff!','Wuff wuff!','*hechel*']);
   if(p.thirst>=2)L.push('Ich hab so Durst…','Nur ein Schluck Wasser, bitte!');if(p.hunger>=4)L.push('Mein Magen knurrt.','Gibt’s heute Suppe?');
